@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
 import resourceRoutes from './routes/resourceRoutes.js'
+import sessionRoutes from "./routes/session.routes.js";
 
 dotenv.config()
 
@@ -15,7 +16,7 @@ app.use(express.json())
 
 app.use('/users', userRoutes)
 app.use('/resources', resourceRoutes)
-
+app.use('/sessions',sessionRoutes)
 
 app.use((err, req, res, next) => {
     console.error(err)

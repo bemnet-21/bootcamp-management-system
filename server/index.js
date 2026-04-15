@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
 import resourceRoutes from './routes/resourceRoutes.js'
+import divisionRoutes from './routes/division.routes.js'
 
 dotenv.config()
 
@@ -15,6 +16,7 @@ app.use(express.json())
 
 app.use('/users', userRoutes)
 app.use('/resources', resourceRoutes)
+app.use('/divisions', divisionRoutes)
 
 
 app.use((err, req, res, next) => {

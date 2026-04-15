@@ -20,4 +20,6 @@ const userSchema = new Schema({
     refreshToken: { type: String }
 }, { timestamps: true });
 
+userSchema.index({ role: 1, divisions: 1 });
+
 export default mongoose.model('User', userSchema);

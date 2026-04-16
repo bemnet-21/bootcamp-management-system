@@ -1,3 +1,5 @@
+import jwt from 'jsonwebtoken';
+
 export const generateAccessToken = (user) => {
     const payload = {
         id: user._id,

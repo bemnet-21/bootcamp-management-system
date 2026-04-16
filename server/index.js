@@ -2,6 +2,10 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.routes.js'
+import connectDB from './db/db.js'
+import userRoutes from './routes/user.routes.js'
+import resourceRoutes from './routes/resourceRoutes.js'
+import sessionRoutes from "./routes/session.routes.js";
 
 dotenv.config()
 
@@ -11,8 +15,18 @@ const port = process.env.PORT || 5000
 app.use(cors())
 app.use(express.json())
 
+app.use('/auth', authRoutes)
+app.use('/users', userRoutes)
+app.use('/resources', resourceRoutes)
+app.use('/sessions',sessionRoutes)
+
+app.use((err, req, res, next) => {
+    console.error(err)
+    res.status(500).json({ error: 'Server Error', message: err.message || 'Internal server error.' })
+})
+
+await connectDB()
+
 app.listen(port, () => {
     console.log("Server is running on port: " + port)
 })
-
-app.use('/api/v1/auth', authRoutes)

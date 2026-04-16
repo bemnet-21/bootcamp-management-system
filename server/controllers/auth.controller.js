@@ -82,7 +82,7 @@ export const resetRequest = async (req, res) => {
 
         const resetToken = jwt.sign(
             { id: user._id }, 
-            process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+            process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
         
         const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
@@ -105,5 +105,26 @@ export const resetRequest = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
 
     }
+}
+
+export const resetConfirm = async (req, res) => {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ message: 'Token and new password are required' });
+
+    try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const user = await UserModel.findById(decoded.id).select('+password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.refreshToken = null;
+        await user.save();
+
+        return res.status(200).json({ message: 'Password reset successful' });
+    } catch (error) {
+        res.status(400).json({ error: 'Invalid or expired token', message: "Link has expired or is invalid" });
+    }
+        
 }
 

@@ -14,5 +14,4 @@ export function checkRole(requiredRole) {
     };
 }
 
-// Alias to match common naming in other modules.
 export const restrictTo = checkRole;

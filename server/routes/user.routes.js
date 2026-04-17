@@ -8,22 +8,9 @@ import {
     listUsers,
     updateUser,
 } from "../controllers/user.controller.js";
+import protect from "../middlewares/auth.js";
 
 const router = Router();
-
-function authenticate(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Access token is required" });
-    }
-    const token = authHeader.split(" ")[1];
-    try {
-        req.user = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        return next();
-    } catch (error) {
-        return res.status(401).json({ message: "Invalid or expired access token" });
-    }
-}
 
 function requireAdmin(req, res, next) {
     if (req.user?.role !== "Admin") {
@@ -32,10 +19,10 @@ function requireAdmin(req, res, next) {
     return next();
 }
 
-router.get("/me", authenticate, getMe);
-router.post("/", authenticate, requireAdmin, createUser);
-router.get("/", authenticate, requireAdmin, listUsers);
-router.get("/:id", authenticate, requireAdmin, getUserById);
-router.patch("/:id", authenticate, requireAdmin, updateUser);
-
+router.get("/me", protect, getMe);
+router.post("/", protect, requireAdmin, createUser);
+router.get("/", protect, requireAdmin, listUsers);
+router.get("/:id", protect, requireAdmin, getUserById);
+router.patch("/:id", protect, requireAdmin, updateUser);
+router.delete("/:id", protect, requireAdmin, deleteUser);
 export default router;

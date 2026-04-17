@@ -4,7 +4,7 @@ import {
     getResources,
     downloadResource,
     deleteResource,
-} from "../controllers/resourceController.js";
+} from "../controllers/resource.controller.js";
 
 const router = express.Router();
 

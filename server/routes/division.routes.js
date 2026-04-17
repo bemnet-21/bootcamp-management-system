@@ -5,8 +5,8 @@ import {
     listDivisions,
     updateDivisionHandler,
 } from "../controllers/division.controller.js";
-import { protect } from "../middlewares/auth.js";
 import { restrictTo } from "../middlewares/checkRole.js";
+import protect from "../middlewares/auth.js";
 
 const router = Router();
 

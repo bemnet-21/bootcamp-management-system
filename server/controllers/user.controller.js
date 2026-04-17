@@ -1,7 +1,8 @@
-import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import User from "../models/User.model.js";
 import Division from "../models/Division.model.js";
+
+import bcrypt from "bcrypt";
 
 const ROLES = ["Admin", "Instructor", "Student"];
 const STATUSES = ["Active", "Suspended", "Graduated"];
@@ -72,7 +73,7 @@ export async function getMe(req, res) {
     if (!mongoose.isValidObjectId(userId)) {
         return res.status(400).json({
             error: "Validation Error",
-            message: "X-User-Id must be a valid user id.",
+            message: "Authenticated user id must be a valid user id.",
         });
     }
     const user = await User.findById(userId).populate("divisions").lean();
@@ -111,6 +112,7 @@ export async function createUser(req, res) {
                 "firstName, lastName, username, email, password, and role are required.",
         });
     }
+
     if (!ROLES.includes(role)) {
         return res.status(400).json({
             error: "Validation Error",

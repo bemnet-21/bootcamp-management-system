@@ -1,98 +1,130 @@
+import UserModel from "../models/User.model.js";
 import bcrypt from "bcrypt";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwtHelper.js";
 import jwt from "jsonwebtoken";
-import User from "../models/User.model.js";
-import { sendError, sendResponse } from "../utils/response.js";
+import transporter from "../utils/mailer.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "vanguard-dev-secret";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+export const login = async (req, res) => {
+    const { username, password } = req.body;
 
-function publicUser(doc) {
-    if (!doc) return null;
-    const user = doc.toObject ? doc.toObject() : { ...doc };
-    delete user.password;
-    delete user.refreshToken;
-    return user;
-}
-
-async function comparePassword(inputPassword, storedPassword) {
-    if (!storedPassword) return false;
-
-    if (storedPassword.startsWith("$2")) {
-        return bcrypt.compare(inputPassword, storedPassword);
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    return inputPassword === storedPassword;
-}
-
-function signToken(user) {
-    return jwt.sign(
-        {
-            id: String(user._id),
-            userId: String(user._id),
-            role: user.role,
-        },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN }
-    );
-}
-
-export async function login(req, res, next) {
     try {
-        const { email, password } = req.body ?? {};
+        const user = await UserModel.findOne({ username }).select('+password');
 
-        if (!email || !password) {
-            return sendError(res, {
-                status: 400,
-                error: "Validation Error",
-                message: "email and password are required.",
-            });
-        }
-
-        const user = await User.findOne({ email: String(email).trim().toLowerCase() }).populate("divisions");
         if (!user) {
-            return sendError(res, {
-                status: 401,
-                error: "Unauthorized",
-                message: "Invalid email or password.",
-            });
+            return res.status(401).json({ message: 'Invalid username or password' });
         }
 
-        const isValidPassword = await comparePassword(String(password), String(user.password));
-        if (!isValidPassword) {
-            return sendError(res, {
-                status: 401,
-                error: "Unauthorized",
-                message: "Invalid email or password.",
+        if (user.status === "Suspended") {
+            return res.status(403).json({ 
+                message: 'Your account is suspended. Please contact administration.' 
             });
         }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Invalid username or password' });
+        }
 
-        const token = signToken(user);
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
 
-        return sendResponse(res, {
-            status: 200,
-            success: true,
-            data: {
-                token,
-                user: publicUser(user),
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        res.status(200).json({
+            message: 'Login successful',
+            user: {
+                id: user._id,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                role: user.role
             },
-            message: "Login successful.",
+            accessToken,   
+            refreshToken  
         });
-    } catch (err) {
-        return next(err);
-    }
-}
 
-export async function getAuthenticatedUser(req, res, next) {
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export const refreshToken = async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ message: 'Refresh token is required' });
+
     try {
-        const populatedUser = await req.user.populate("divisions");
+        const decoded = verifyRefreshToken(refreshToken);
+        const user = await UserModel.findById(decoded.id);
+        if (!user || user.refreshToken !== refreshToken)  return res.status(401).json({ message: 'Invalid refresh token' });
 
-        return sendResponse(res, {
-            status: 200,
-            success: true,
-            data: publicUser(populatedUser),
-            message: "Authenticated user fetched successfully.",
-        });
-    } catch (err) {
-        return next(err);
+        const newAccessToken = generateAccessToken(user);
+        const newRefreshToken = generateRefreshToken(user);
+        user.refreshToken = newRefreshToken;
+        await user.save();
+        res.status(200).json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+    } catch (error) {
+        res.status(401).json({ message: 'Invalid refresh token' });
     }
 }
+
+export const resetRequest = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    try {
+        const user = await UserModel.findOne({ email });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const resetToken = jwt.sign(
+            { id: user._id }, 
+            process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
+        
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Password Reset Request',
+            html: `
+                <h3>Hello ${user.firstName},</h3>
+                <p>You requested a password reset. Click the link below to reset your password:</p>
+                <a href="${resetLink}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
+                <p>If you did not request this, please ignore this email.</p>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ message: 'Password reset link sent to your email' });
+    } catch (error) {
+        console.log("Error", error)
+        res.status(500).json({ message: 'Internal server error' });
+
+    }
+}
+
+export const resetConfirm = async (req, res) => {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ message: 'Token and new password are required' });
+
+    try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const user = await UserModel.findById(decoded.id).select('+password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.refreshToken = null;
+        await user.save();
+
+        return res.status(200).json({ message: 'Password reset successful' });
+    } catch (error) {
+        res.status(400).json({ error: 'Invalid or expired token', message: "Link has expired or is invalid" });
+    }
+        
+}
+

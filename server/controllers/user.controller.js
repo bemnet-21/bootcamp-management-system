@@ -4,6 +4,8 @@ import User from "../models/User.model.js";
 import Division from "../models/Division.model.js";
 import { sendError, sendResponse } from "../utils/response.js";
 
+import bcrypt from "bcrypt";
+
 const ROLES = ["Admin", "Instructor", "Student"];
 const STATUSES = ["Active", "Suspended", "Graduated"];
 
@@ -114,6 +116,9 @@ export async function createUser(req, res) {
                 "firstName, lastName, username, email, password, and role are required.",
         });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     if (!ROLES.includes(role)) {
         return sendError(res, {
             status: 400,

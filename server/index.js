@@ -6,7 +6,6 @@ import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
 import resourceRoutes from './routes/resource.routes.js'
 import divisionRoutes from './routes/division.routes.js'
-import authRoutes from './routes/auth.routes.js'
 import sessionRoutes from './routes/session.routes.js'
 
 dotenv.config()

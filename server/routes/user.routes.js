@@ -9,20 +9,16 @@ import {
     updateUser,
 } from "../controllers/user.controller.js";
 import protect from "../middlewares/auth.js";
+import { restrictTo } from "../middlewares/checkRole.js";
 
 const router = Router();
 
-function requireAdmin(req, res, next) {
-    if (req.user?.role !== "Admin") {
-        return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-    return next();
-}
+
 
 router.get("/me", protect, getMe);
-router.post("/", protect, requireAdmin, createUser);
-router.get("/", protect, requireAdmin, listUsers);
-router.get("/:id", protect, requireAdmin, getUserById);
-router.patch("/:id", protect, requireAdmin, updateUser);
-router.delete("/:id", protect, requireAdmin, deleteUser);
+router.post("/", protect, restrictTo("Admin"), createUser);
+router.get("/", protect, restrictTo("Admin"), listUsers);
+router.get("/:id", protect, restrictTo("Admin"), getUserById);
+router.patch("/:id", protect, restrictTo("Admin"), updateUser);
+router.delete("/:id", protect, restrictTo("Admin"), deleteUser);
 export default router;

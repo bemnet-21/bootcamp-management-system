@@ -4,7 +4,6 @@ import User from "../models/User.model.js";
 import Division from "../models/Division.model.js";
 import { sendError, sendResponse } from "../utils/response.js";
 
-import bcrypt from "bcrypt";
 
 const ROLES = ["Admin", "Instructor", "Student"];
 const STATUSES = ["Active", "Suspended", "Graduated"];

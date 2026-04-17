@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 
 const ROLES = ["Admin", "Instructor", "Student"];
 const STATUSES = ["Active", "Suspended", "Graduated"];
+const BCRYPT_ROUNDS = 10;
 
 function permissionsForRole(role) {
     switch (role) {
@@ -61,27 +62,31 @@ async function resolveDivisionFilter(divisionParam) {
 }
 
 /**
- * GET /users/me — temporary: send X-User-Id (Mongo ObjectId) until JWT auth exists.
+ * GET /users/me — uses req.user.id from auth middleware.
  */
 export async function getMe(req, res) {
-    const userId = req.headers["x-user-id"];
+    const userId = req.user?.id;
     if (!userId || String(userId).trim() === "") {
-        return sendError(res, {
-            status: 400,
-            error: "Validation Error",
-            message: "X-User-Id header is required until JWT authentication is available.",
+        return res.status(401).json({
+            error: "Unauthorized",
+            message: "Authenticated user is required.",
         });
     }
     if (!mongoose.isValidObjectId(userId)) {
         return sendError(res, {
             status: 400,
             error: "Validation Error",
-            message: "X-User-Id must be a valid user id.",
+            message: "Authenticated user id must be a valid user id.",
         });
     }
     const user = await User.findById(userId).populate("divisions").lean();
     if (!user) {
         return sendError(res, { status: 404, error: "Not Found", message: "User not found." });
+    }
+    if (user.status === "Suspended") {
+        return res.status(403).json({
+            message: "Your account is suspended. Please contact administration.",
+        });
     }
     delete user.password;
     delete user.refreshToken;
@@ -116,8 +121,6 @@ export async function createUser(req, res) {
                 "firstName, lastName, username, email, password, and role are required.",
         });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     if (!ROLES.includes(role)) {
         return sendError(res, {
@@ -158,13 +161,13 @@ export async function createUser(req, res) {
     }
 
     try {
-        const hashedPassword = await bcrypt.hash(String(password), 10);
+        const passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
         const created = await User.create({
             firstName: String(firstName).trim(),
             lastName: String(lastName).trim(),
             username: String(username).trim(),
             email: String(email).trim().toLowerCase(),
-            password: hashedPassword,
+            password: passwordHash,
             role,
             divisions: divisionIds,
             ...(status !== undefined ? { status } : {}),
@@ -352,7 +355,7 @@ export async function updateUser(req, res) {
         updates.lastName = String(updates.lastName).trim();
     }
     if (updates.password !== undefined) {
-        updates.password = await bcrypt.hash(String(updates.password), 10);
+        updates.password = await bcrypt.hash(String(updates.password), BCRYPT_ROUNDS);
     }
 
     try {

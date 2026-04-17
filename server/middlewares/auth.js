@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
 import { sendError } from "../utils/response.js";
 
+const JWT_SECRET = process.env.JWT_SECRET || "vanguard-dev-secret";
+
 /**
  * Auth middleware:
  * - Preferred: Authorization: Bearer <jwt> (expects payload `id` or `userId`)
@@ -16,16 +18,9 @@ export async function auth(req, res, next) {
         let userId = null;
 
         if (bearer) {
-            if (!process.env.JWT_SECRET) {
-                return sendError(res, {
-                    status: 401,
-                    error: "Unauthorized",
-                    message: "JWT_SECRET is not configured.",
-                });
-            }
             let payload;
             try {
-                payload = jwt.verify(bearer, process.env.JWT_SECRET);
+                payload = jwt.verify(bearer, JWT_SECRET);
             } catch (err) {
                 return sendError(res, { status: 401, error: "Unauthorized", message: "Invalid or expired token." });
             }

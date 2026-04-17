@@ -8,5 +8,6 @@ const feedbackSchema = new Schema({
 }, { timestamps: true });
 
 feedbackSchema.index({ session: 1, student: 1 }, { unique: true });
+feedbackSchema.index({ session: 1 });
 
 export default mongoose.model('Feedback', feedbackSchema);

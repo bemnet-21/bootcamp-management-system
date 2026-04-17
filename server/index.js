@@ -5,7 +5,9 @@ import authRoutes from './routes/auth.routes.js'
 import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
 import resourceRoutes from './routes/resourceRoutes.js'
-import sessionRoutes from "./routes/session.routes.js";
+import divisionRoutes from './routes/division.routes.js'
+import authRoutes from './routes/auth.routes.js'
+import sessionRoutes from './routes/session.routes.js'
 
 dotenv.config()
 
@@ -17,8 +19,10 @@ app.use(express.json())
 
 app.use('/auth', authRoutes)
 app.use('/users', userRoutes)
+app.use('/sessions', sessionRoutes)
 app.use('/resources', resourceRoutes)
-app.use('/sessions',sessionRoutes)
+app.use('/divisions', divisionRoutes)
+
 
 app.use((err, req, res, next) => {
     console.error(err)

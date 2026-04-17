@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vanguard-blue: #2563EB;
+  --color-vanguard-blue-dark: #1E40AF;
+  --color-vanguard-blue-light: #EFF6FF;
+  --color-vanguard-gray-50: #FAFBFC;
+  --color-vanguard-gray-100: #F1F5F9;
+  --color-vanguard-gray-200: #E2E8F0;
+  --color-vanguard-gray-800: #0F172A;
+  --color-vanguard-muted: #64748B;
+  
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#F8FAFC] text-vanguard-gray-800 antialiased font-sans;
+  }
+}
+
+.auth-gradient {
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+}
+
+.card-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.nav-item-active {
+  background: #EFF6FF;
+  color: #2563EB;
+}

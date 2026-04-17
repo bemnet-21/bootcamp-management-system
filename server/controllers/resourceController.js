@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Resource from "../models/resource.model.js";
+import Resource from "../models/Resource.model.js";
 
 export async function createResource(req, res) {
     try {

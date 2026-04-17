@@ -60,14 +60,23 @@ export const useAuthStore = create<AuthState>()(
           set({ user, token, isAuthenticated: true });
           return { success: true };
         } catch (error: any) {
-          let message = 'Login failed.';
-          if (error.response?.data?.message) {
-            message = error.response.data.message;
+          let message = 'Login failed. Please try again.';
+          if (error.response) {
+            if (error.response.status === 401) {
+              message = 'Incorrect username or password. Please check your credentials.';
+            } else if (error.response.status === 403) {
+              message = 'Your account is not authorized to access this system.';
+            } else if (error.response.status === 429) {
+              message = 'Too many login attempts. Please wait and try again.';
+            } else if (error.response.data?.message) {
+              message = error.response.data.message;
+            }
+          } else if (error.request) {
+            message = 'Unable to connect to the server. Please check your internet connection.';
           }
           return { success: false, message };
         }
       },
-      // logout is defined below (only one definition allowed)
     }),
     {
       name: 'vanguard-auth-storage',

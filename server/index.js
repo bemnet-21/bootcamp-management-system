@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import authRoutes from './routes/auth.routes.js'
 import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
 import resourceRoutes from './routes/resourceRoutes.js'
@@ -14,6 +15,7 @@ const port = process.env.PORT || 5000
 app.use(cors())
 app.use(express.json())
 
+app.use('/auth', authRoutes)
 app.use('/users', userRoutes)
 app.use('/resources', resourceRoutes)
 app.use('/sessions',sessionRoutes)

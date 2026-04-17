@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import User from "../models/User.model.js";
 import Division from "../models/Division.model.js";
 
+import bcrypt from "bcrypt";
+
 const ROLES = ["Admin", "Instructor", "Student"];
 const STATUSES = ["Active", "Suspended", "Graduated"];
 
@@ -104,6 +106,9 @@ export async function createUser(req, res) {
                 "firstName, lastName, username, email, password, and role are required.",
         });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     if (!ROLES.includes(role)) {
         return res.status(400).json({
             error: "Validation Error",
@@ -144,7 +149,7 @@ export async function createUser(req, res) {
             lastName: String(lastName).trim(),
             username: String(username).trim(),
             email: String(email).trim().toLowerCase(),
-            password: String(password),
+            password: hashedPassword,
             role,
             divisions: divisionIds,
             ...(status !== undefined ? { status } : {}),

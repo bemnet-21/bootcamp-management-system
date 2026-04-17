@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { useUserStore } from './useUserStore';
+// import { useUserStore } from './useUserStore';
+import axiosInstance from '../api/axiosInstance';
+import { ENDPOINTS } from '../api/endpoints';
 
 interface User {
   id: string;
@@ -15,9 +17,9 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  authenticate: (email: string, password: string) => boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
+  loginWithBackend: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 const DEFAULT_ADMIN = {
@@ -41,54 +43,6 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      authenticate: (email, password) => {
-        const normalizedEmail = email.trim().toLowerCase();
-
-        if (
-          normalizedEmail === DEFAULT_ADMIN.email &&
-          password === DEFAULT_ADMIN.password
-        ) {
-          localStorage.setItem('vanguard_token', 'default_admin_token');
-          set({
-            user: {
-              id: DEFAULT_ADMIN.id,
-              name: DEFAULT_ADMIN.name,
-              email: DEFAULT_ADMIN.email,
-              role: DEFAULT_ADMIN.role,
-              avatar: DEFAULT_ADMIN.avatar,
-            },
-            token: 'default_admin_token',
-            isAuthenticated: true,
-          });
-          return true;
-        }
-
-        const matchedMember = useUserStore.getState().members.find(
-          (member) =>
-            member.email.toLowerCase() === normalizedEmail &&
-            member.temporaryPassword === password
-        );
-
-        if (!matchedMember) {
-          return false;
-        }
-
-        const token = `member_${matchedMember.id}_token`;
-        localStorage.setItem('vanguard_token', token);
-        set({
-          user: {
-            id: matchedMember.id,
-            name: matchedMember.name,
-            email: matchedMember.email,
-            role: roleMap[matchedMember.role],
-            division: matchedMember.divisionId,
-            avatar: matchedMember.avatar,
-          },
-          token,
-          isAuthenticated: true,
-        });
-        return true;
-      },
       login: (user, token) => {
         localStorage.setItem('vanguard_token', token);
         set({ user, token, isAuthenticated: true });
@@ -97,6 +51,23 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('vanguard_token');
         set({ user: null, token: null, isAuthenticated: false });
       },
+
+      loginWithBackend: async (username: string, password: string) => {
+        try {
+          const response = await axiosInstance.post(ENDPOINTS.AUTH.LOGIN, { username, password });
+          const { user, token } = response.data;
+          localStorage.setItem('vanguard_token', token);
+          set({ user, token, isAuthenticated: true });
+          return { success: true };
+        } catch (error: any) {
+          let message = 'Login failed.';
+          if (error.response?.data?.message) {
+            message = error.response.data.message;
+          }
+          return { success: false, message };
+        }
+      },
+      // logout is defined below (only one definition allowed)
     }),
     {
       name: 'vanguard-auth-storage',

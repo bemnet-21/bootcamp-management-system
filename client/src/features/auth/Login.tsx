@@ -9,20 +9,21 @@ import { Toaster, toast } from 'sonner';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { authenticate } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const { loginWithBackend } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const authenticated = authenticate(email, password);
-
-    if (!authenticated) {
-      toast.error('Invalid credentials. Use the temporary password assigned by an admin.');
+    setLoading(true);
+    const result = await loginWithBackend(username, password);
+    setLoading(false);
+    if (!result.success) {
+      toast.error(result.message || 'Invalid credentials. Use the temporary password assigned by an admin.');
       return;
     }
-
     navigate('/');
   };
 
@@ -38,13 +39,13 @@ const Login = () => {
         
         <form onSubmit={handleLogin} className="space-y-6">
           <Input 
-            id="email"
-            label="Email Address" 
-            placeholder="admin@vanguard.edu" 
+            id="username"
+            label="Username" 
+            placeholder="Enter your username" 
             icon={<Mail size={18} />}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
           
@@ -65,13 +66,15 @@ const Login = () => {
             </Link>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input type="checkbox" id="remember" className="w-4 h-4 rounded border-vanguard-gray-200 text-vanguard-blue focus:ring-vanguard-blue" />
-            <label htmlFor="remember" className="text-xs font-semibold text-vanguard-gray-800 opacity-60">Keep me signed in for 30 days</label>
-          </div>
-
-          <Button type="submit" className="w-full h-12 text-sm uppercase tracking-widest font-black" size="lg">
-            Sign In to Dashboard <ArrowRight size={18} className="ml-2" />
+          <Button type="submit" className="w-full h-12 text-sm uppercase tracking-widest font-black flex items-center justify-center" size="lg" disabled={loading}>
+            {loading ? (
+              <svg className="animate-spin mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+            ) : (
+              <>Sign In to Dashboard <ArrowRight size={18} className="ml-2" /></>
+            )}
           </Button>
 
           <div className="pt-6 rounded-2xl border border-vanguard-gray-100 bg-vanguard-blue-light/20 px-4 py-3">

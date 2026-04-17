@@ -127,12 +127,17 @@ const Sidebar = () => {
             </div>
           )}
         </div>
-        
         <button 
           onClick={toggleSidebar}
-          className="w-full flex items-center justify-center p-2 rounded-lg bg-vanguard-gray-100 hover:bg-vanguard-gray-200 transition-colors"
+          className="w-full flex items-center justify-center p-2 rounded-lg bg-vanguard-gray-100 hover:bg-vanguard-gray-200 transition-colors mb-2"
         >
           {sidebarCollapsed ? <ChevronRight size={16} /> : <div className="flex items-center text-xs font-bold uppercase gap-2"><ChevronLeft size={16} /> Collapse</div>}
+        </button>
+        <button
+          onClick={() => { logout(); window.location.href = '/login'; }}
+          className="w-full flex items-center justify-center p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-bold mt-2 transition-colors"
+        >
+          <LogOut size={16} className="mr-2" /> Logout
         </button>
       </div>
     </div>

@@ -3,7 +3,10 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
 import { sendError } from "../utils/response.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "vanguard-dev-secret";
+import dotenv from 'dotenv'
+dotenv.config()
+
+const JWT_SECRET = process.env.ACCESS_TOKEN_SECRET
 
 /**
  * Auth middleware:
@@ -20,6 +23,7 @@ function protect(req, res, next) {
         req.user = jwt.verify(token, JWT_SECRET);
         return next();
     } catch (error) {
+        console.log(error)
         return res.status(401).json({ message: "Invalid or expired access token" });
     }
 }

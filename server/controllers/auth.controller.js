@@ -84,7 +84,7 @@ export const resetRequest = async (req, res) => {
             { id: user._id }, 
             process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
         
-        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+        const resetLink = `${process.env.FRONTEND_URL}?token=${resetToken}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,

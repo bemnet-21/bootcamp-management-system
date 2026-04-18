@@ -3,10 +3,17 @@ import bcrypt from "bcrypt";
 import User from "../models/User.model.js";
 import Division from "../models/Division.model.js";
 import { sendError, sendResponse } from "../utils/response.js";
+import z from "zod";
+import transporter from "../utils/mailer.js";
+import crypto from "crypto";
 
 
 const ROLES = ["Admin", "Instructor", "Student"];
 const STATUSES = ["Active", "Suspended", "Graduated"];
+
+function generateRandomPassword(length = 12) {
+    return crypto.randomBytes(length).toString("base64").replace(/[^a-zA-Z0-9]/g, '').slice(0, length);
+}
 const BCRYPT_ROUNDS = 10;
 
 function permissionsForRole(role) {
@@ -60,84 +67,33 @@ async function resolveDivisionFilter(divisionParam) {
     return byName ? byName._id : { notFound: true };
 }
 
-/**
- * GET /users/me — uses req.user.id from auth middleware.
- */
-export async function getMe(req, res) {
-    const userId = req.user?.id;
-    if (!userId || String(userId).trim() === "") {
-        return res.status(401).json({
-            error: "Unauthorized",
-            message: "Authenticated user is required.",
-        });
-    }
-    if (!mongoose.isValidObjectId(userId)) {
-        return sendError(res, {
-            status: 400,
-            error: "Validation Error",
-            message: "Authenticated user id must be a valid user id.",
-        });
-    }
-    const user = await User.findById(userId).populate("divisions").lean();
-    if (!user) {
-        return sendError(res, { status: 404, error: "Not Found", message: "User not found." });
-    }
-    if (user.status === "Suspended") {
-        return res.status(403).json({
-            message: "Your account is suspended. Please contact administration.",
-        });
-    }
-    delete user.password;
-    delete user.refreshToken;
-    return sendResponse(res, {
-        status: 200,
-        success: true,
-        data: {
-            user,
-            permissions: permissionsForRole(user.role),
-        },
-        message: "Authenticated user fetched successfully.",
-    });
-}
+
+const createUserSchema = z.object({
+    firstName: z.string().min(2, "firstName is required."),
+    lastName: z.string().min(2, "lastName is required."),
+    username: z.string().min(3, "username is required."),
+    email: z.string().email("Invalid email address."),
+    role: z.enum(ROLES, { errorMap: () => ({ message: `role must be one of: ${ROLES.join(", ")}.` }) }),
+    divisions: z.array(z.string()),
+    status: z.enum(STATUSES, { errorMap: () => ({ message: `status must be one of: ${STATUSES.join(", ")}.` }) }),
+})
 
 export async function createUser(req, res) {
-    const {
-        firstName,
-        lastName,
-        username,
-        email,
-        password,
-        role,
-        divisions = [],
-        status,
-    } = req.body ?? {};
-
-    if (!firstName || !lastName || !username || !email || !password || !role) {
+    const parseResult = createUserSchema.safeParse(req.body ?? {});
+    if (!parseResult.success) {
+        const error = parseResult.error.errors[0];
         return sendError(res, {
             status: 400,
             error: "Validation Error",
-            message:
-                "firstName, lastName, username, email, password, and role are required.",
+            message: error.message,
         });
     }
+    const { firstName, lastName, username, email, role, divisions, status } = parseResult.data;
 
-    if (!ROLES.includes(role)) {
-        return sendError(res, {
-            status: 400,
-            error: "Validation Error",
-            message: `role must be one of: ${ROLES.join(", ")}.`,
-        });
-    }
-    if (status !== undefined && !STATUSES.includes(status)) {
-        return sendError(res, {
-            status: 400,
-            error: "Validation Error",
-            message: `status must be one of: ${STATUSES.join(", ")}.`,
-        });
-    }
+    const randomPassword = generateRandomPassword(12);
 
-    const divisionIds = Array.isArray(divisions) ? divisions : [];
-    for (const id of divisionIds) {
+    // Validate division IDs
+    for (const id of divisions) {
         if (!mongoose.isValidObjectId(id)) {
             return sendError(res, {
                 status: 400,
@@ -146,11 +102,11 @@ export async function createUser(req, res) {
             });
         }
     }
-    if (divisionIds.length > 0) {
+    if (divisions.length > 0) {
         const count = await Division.countDocuments({
-            _id: { $in: divisionIds.map((id) => new mongoose.Types.ObjectId(id)) },
+            _id: { $in: divisions.map((id) => new mongoose.Types.ObjectId(id)) },
         });
-        if (count !== divisionIds.length) {
+        if (count !== divisions.length) {
             return sendError(res, {
                 status: 400,
                 error: "Validation Error",
@@ -160,7 +116,7 @@ export async function createUser(req, res) {
     }
 
     try {
-        const passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
+        const passwordHash = await bcrypt.hash(String(randomPassword), BCRYPT_ROUNDS);
         const created = await User.create({
             firstName: String(firstName).trim(),
             lastName: String(lastName).trim(),
@@ -168,15 +124,21 @@ export async function createUser(req, res) {
             email: String(email).trim().toLowerCase(),
             password: passwordHash,
             role,
-            divisions: divisionIds,
-            ...(status !== undefined ? { status } : {}),
+            divisions,
+            status,
+        });
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Your Account Has Been Created",
+            text: `Hello ${firstName},\n\nYour account has been created. Your temporary password is: ${randomPassword}\nPlease log in and change your password as soon as possible.\n\nThank you.`,
         });
         const populated = await User.findById(created._id).populate("divisions");
         return sendResponse(res, {
             status: 201,
             success: true,
             data: publicUser(populated),
-            message: "User created successfully.",
+            message: "User created successfully. A password has been sent to the user's email.",
         });
     } catch (err) {
         if (err.code === 11000) {
@@ -192,7 +154,7 @@ export async function createUser(req, res) {
 }
 
 export async function listUsers(req, res) {
-    const { role, division } = req.query;
+    const { role, division, status, page = 1, limit = 20 } = req.query;
     const filter = {};
 
     if (role !== undefined && role !== "") {
@@ -205,6 +167,16 @@ export async function listUsers(req, res) {
         }
         filter.role = role;
     }
+    if (status !== undefined && status !== "") {
+        if (!STATUSES.includes(status)) {
+            return sendError(res, {
+                status: 400,
+                error: "Validation Error",
+                message: `status query must be one of: ${STATUSES.join(", ")}.`,
+            });
+        }
+        filter.status = status;
+    }
 
     if (division !== undefined && division !== "") {
         const resolved = await resolveDivisionFilter(division);
@@ -216,16 +188,33 @@ export async function listUsers(req, res) {
             });
         }
         if (resolved?.notFound) {
-            return sendError(res, {
-                status: 404,
-                error: "Not Found",
-                message: "No division matches the given filter.",
+            return sendResponse(res, {
+                status: 200,
+                success: true,
+                data: [],
+                pagination: {
+                    total: 0,
+                    page: parseInt(page, 10) || 1,
+                    limit: parseInt(limit, 10) || 20,
+                    totalPages: 0,
+                },
+                message: "No users found for the given division filter.",
             });
         }
         filter.divisions = resolved;
     }
 
-    const users = await User.find(filter).populate("divisions").sort({ createdAt: -1 }).lean();
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await User.countDocuments(filter);
+    const users = await User.find(filter)
+        .populate("divisions")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean();
     for (const u of users) {
         delete u.password;
         delete u.refreshToken;
@@ -234,6 +223,12 @@ export async function listUsers(req, res) {
         status: 200,
         success: true,
         data: users,
+        pagination: {
+            total,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: Math.ceil(total / limitNum),
+        },
         message: "Users fetched successfully.",
     });
 }
@@ -405,5 +400,39 @@ export async function deleteUser(req, res) {
         success: true,
         data: { id },
         message: "User deleted successfully.",
+    });
+}
+
+export async function updateStatus(req, res) {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!mongoose.isValidObjectId(id)) {
+        return sendError(res, {
+            status: 400,
+            error: "Validation Error",
+            message: "Invalid user id.",
+        });
+    }
+
+    if (!STATUSES.includes(status)) {
+        return sendError(res, {
+            status: 400,
+            error: "Validation Error",
+            message: `status must be one of: ${STATUSES.join(", ")}.`,
+        });
+    }
+
+    const user = await User.findByIdAndUpdate(
+        id,
+        { $set: { status } },
+        { new: true, runValidators: true }
+    )
+    if (!user) return sendError(res, { status: 404, error: "Not Found", message: "User not found." });
+
+    return sendResponse(res, {
+        status: 200,
+        success: true,
+        data: publicUser(user),
+        message: "User status updated successfully.",
     });
 }

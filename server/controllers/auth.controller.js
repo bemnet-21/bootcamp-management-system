@@ -124,7 +124,73 @@ export const resetConfirm = async (req, res) => {
         return res.status(200).json({ message: 'Password reset successful' });
     } catch (error) {
         res.status(400).json({ error: 'Invalid or expired token', message: "Link has expired or is invalid" });
+    }       
+}
+
+export const changePassword = async (req, res) => {
+    const { id } = req.user;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) return res.status(400).json({ message: 'Current and new passwords are required' });
+
+    try {
+        const user = await UserModel.findById(id).select('+password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+        if (!isMatch) return res.status(401).json({ message: 'Current password is incorrect' });
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.refreshToken = null;
+        await user.save();
+        res.status(200).json({ message: 'Password changed successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
     }
-        
+}
+
+export const profile = async (req, res) => {
+    const { id } = req.user;
+    try {
+        const user = await UserModel.findById(id).select('-password -refreshToken');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.status(200).json({ user });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const updateProfile = async (req, res) => {
+    const { id } = req.user;
+    const { firstName, lastName, email, username } = req.body;
+
+    try {
+        const user = await UserModel.findById(id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        user.firstName = firstName || user.firstName;
+        user.lastName = lastName || user.lastName;
+        user.email = email || user.email;
+        user.username = username || user.username;
+        await user.save();
+        res.status(200).json({ message: 'Profile updated successfully', user });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export const logout = async (req, res) => {
+    const { id } = req.user;
+    try {
+        const user = await UserModel.findById(id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        user.refreshToken = null;
+        await user.save();
+        res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }
 

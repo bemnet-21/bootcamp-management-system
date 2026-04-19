@@ -11,12 +11,12 @@ import { restrictTo } from "../middlewares/checkRole.js";
 import protect from "../middlewares/auth.js";
 
 const router = Router();
-
-router.post("/", protect, restrictTo("Admin"), createDivisionHandler);
+router.use(protect);
+router.post("/", restrictTo("Admin"), createDivisionHandler);
 router.get("/", listDivisions);
-router.put("/:id", protect, restrictTo("Admin"), updateDivisionHandler);
+router.put("/:id", restrictTo("Admin"), updateDivisionHandler);
 router.get("/:id", getDivisionDetail);
 router.get("/:id/statistics", getDivisionStatisticsHandler);
-router.delete("/:id", protect, restrictTo("Admin"), deleteDivisionHandler);
+router.delete("/:id", restrictTo("Admin"), deleteDivisionHandler);
 
 export default router;

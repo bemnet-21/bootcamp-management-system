@@ -1,14 +1,17 @@
 import { Router } from "express";
 import {
-    createDivisionHandler,
-    getDivisionStatisticsHandler,
-    listDivisions,
-    updateDivisionHandler,
+  createDivisionHandler,
+  getDivisionStatisticsHandler,
+  listDivisions,
+  updateDivisionHandler,
+  getDivisionDetail,
+  deleteDivisionHandler,
 } from "../controllers/division.controller.js";
 import { restrictTo } from "../middlewares/checkRole.js";
 import protect from "../middlewares/auth.js";
 
 const router = Router();
+<<<<<<< HEAD
 
 /**
  * @swagger
@@ -68,9 +71,14 @@ const router = Router();
  *         description: Division updated
  */
 
+=======
+router.use(protect);
+router.post("/", restrictTo("Admin"), createDivisionHandler);
+>>>>>>> 53856755866cc83b3eaca97912cf6c7b3c0ecbfb
 router.get("/", listDivisions);
-router.post("/", protect, restrictTo("Admin"), createDivisionHandler);
+router.put("/:id", restrictTo("Admin"), updateDivisionHandler);
+router.get("/:id", getDivisionDetail);
 router.get("/:id/statistics", getDivisionStatisticsHandler);
-router.patch("/:id", protect, restrictTo("Admin"), updateDivisionHandler);
+router.delete("/:id", restrictTo("Admin"), deleteDivisionHandler);
 
 export default router;

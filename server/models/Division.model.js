@@ -1,18 +1,24 @@
 import mongoose, { Schema } from "mongoose";
 
-const divisionSchema = new Schema({
+const divisionSchema = new Schema(
+  {
     name: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
     },
     description: { type: String, trim: true },
-    status: {
-        type: String,
-        enum: ["Active", "Inactive"],
-        default: "Active",
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
-}, { timestamps: true });
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { timestamps: true },
+);
 
-export default mongoose.model('Division', divisionSchema);
+export default mongoose.model("Division", divisionSchema);

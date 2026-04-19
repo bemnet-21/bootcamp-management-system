@@ -388,40 +388,5 @@ export const bulkAttendance = async (req, res) => {
       });
     }
 
-    const bulkOps = attendance.map((record) => {
-      if (!mongoose.isValidObjectId(record.student)) {
-        throw new Error(`Invalid student ID: ${record.student}`);
-      }
-
-      return {
-        updateOne: {
-          filter: { session: id, student: record.student },
-          update: {
-            session: id,
-            student: record.student,
-            status: record.status,
-            note: record.note,
-            markedBy: req.user._id,
-          },
-          upsert: true,
-        },
-      };
-    });
-
-    await AttendanceModel.bulkWrite(bulkOps);
-    return res.status(200).json({
-      message: "Attendance records updated successfully",
-    });
-  } catch (error) {
-    if (error.message.startsWith("Invalid student ID")) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: error.message,
-      });
-    }
-    return res.status(500).json({
-      error: "Server Error",
-      message: "Something went wrong while updating attendance records.",
-    });
-  }
+    
 }

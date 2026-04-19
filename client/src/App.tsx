@@ -9,6 +9,7 @@ import { useAuthStore } from './store/useAuthStore';
 import Login from './features/auth/Login';
 import ForgotPassword from './features/auth/ForgotPassword';
 import ResetPassword from './features/auth/ResetPassword';
+import AdminDashboard from './features/dashboard/AdminDashboard';
 import DivisionOverview from './features/divisions/DivisionOverview';
 import DivisionDetail from './features/divisions/DivisionDetail';
 import BootcampRegistry from './features/sessions/BootcampRegistry';
@@ -48,6 +49,12 @@ export default function App() {
 
         {/* Protected Routes */}
         <Route path="/" element={
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/divisions" element={
           <ProtectedRoute>
             <DivisionOverview />
           </ProtectedRoute>

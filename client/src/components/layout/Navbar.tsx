@@ -1,4 +1,4 @@
-import { Search, Bell, HelpCircle, X } from 'lucide-react';
+import { Search, Bell, HelpCircle, X, Plus } from 'lucide-react';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useUIStore } from '@/src/store/useUIStore';
 
@@ -7,18 +7,22 @@ const Navbar = () => {
   const { searchQuery, setSearchQuery } = useUIStore();
 
   return (
-    <div className="h-[64px] border-b border-vanguard-gray-200 bg-white flex items-center justify-between px-8 sticky top-0 z-40">
-      <div className="flex-1 max-w-[400px]">
-        <div className="relative group">
+    <div className="h-[80px] border-b border-vanguard-gray-200 bg-[#F8FAFC] flex items-center justify-between px-8 sticky top-0 z-40">
+      <div className="flex items-center">
+        <h2 className="text-xl font-bold text-vanguard-gray-800 tracking-tight mr-8">
+          Hello, {user?.name.split(' ')[0] || 'Admin'}! <span className="ml-1">👋</span>
+        </h2>
+        
+        <div className="relative group w-[320px]">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-vanguard-muted opacity-40">
             <Search size={16} />
           </div>
           <input 
             type="text" 
-            placeholder="Search students, courses, or events..." 
+            placeholder="Search systems, bootcamps..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-9 pl-10 pr-10 bg-[#F1F5F9] rounded-full text-[13px] border-none focus:ring-1 focus:ring-vanguard-blue transition-all"
+            className="w-full h-11 pl-10 pr-10 bg-[#EDF2F7] rounded-lg text-[13px] border-none focus:ring-1 focus:ring-vanguard-blue transition-all"
           />
           {searchQuery && (
             <button 
@@ -51,17 +55,31 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center space-x-6">
-        <button className="text-vanguard-gray-800 opacity-60 hover:opacity-100 transition-opacity relative">
+        <div className="flex items-center space-x-3 mr-4">
+          <button className="h-11 px-5 bg-[#00519E] hover:bg-[#003d7a] text-white rounded-lg text-xs font-bold uppercase tracking-widest flex items-center transition-colors">
+            <Plus size={16} className="mr-2" /> Add Bootcamp
+          </button>
+          <button className="h-11 px-5 bg-[#E6F0FF] hover:bg-[#d4e5ff] text-[#00519E] border border-[#B3D1FF] rounded-lg text-xs font-bold uppercase tracking-widest flex items-center transition-colors">
+            <Plus size={16} className="mr-2" /> Add Division
+          </button>
+        </div>
+
+        <button className="text-[#8E9FBA] hover:text-[#131B2A] transition-colors relative">
           <Bell size={20} />
-          <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+          <span className="absolute top-0 right-0 w-2 h-2 bg-[#00519E] rounded-full border border-white"></span>
         </button>
-        <button className="text-vanguard-gray-800 opacity-60 hover:opacity-100 transition-opacity">
+        <button className="text-[#8E9FBA] hover:text-[#131B2A] transition-colors">
           <HelpCircle size={20} />
         </button>
-        <div className="flex items-center space-x-3 cursor-pointer group">
-          <div className="w-8 h-8 rounded-full bg-vanguard-gray-200 overflow-hidden ring-2 ring-transparent group-hover:ring-vanguard-blue transition-all">
+        
+        <div className="flex items-center space-x-3 pl-4 border-l border-gray-200 cursor-pointer group">
+          <div className="text-right">
+            <p className="text-sm font-bold text-vanguard-gray-800">{user?.role === 'ADMIN' ? 'Administrator' : user?.name}</p>
+            <p className="text-[10px] text-vanguard-muted uppercase tracking-widest font-bold">Vanguard BMS</p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-vanguard-gray-200 overflow-hidden ring-2 ring-transparent group-hover:ring-vanguard-blue transition-all">
              <img 
-               src={user?.avatar || "https://picsum.photos/seed/user/200"} 
+               src={user?.avatar || "https://i.pravatar.cc/150?u=admin"} 
                alt="User" 
                className="w-full h-full object-cover"
                referrerPolicy="no-referrer"

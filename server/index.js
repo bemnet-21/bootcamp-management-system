@@ -20,7 +20,7 @@ app.use('/auth', authRoutes)
 app.use('/admin/users', userRoutes)
 app.use('/sessions', sessionRoutes)
 app.use('/resources', resourceRoutes)
-app.use('/divisions', divisionRoutes)
+app.use("/admin/divisions", divisionRoutes);
 
 
 app.use((err, req, res, next) => {

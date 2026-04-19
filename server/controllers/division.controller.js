@@ -10,6 +10,7 @@ import { ZodError } from "zod";
 import {
   createDivision,
   getDivisionStatistics,
+  getDivisionWithStats,
   listDivisionsWithStats,
   updateDivision,
   deleteDivision,

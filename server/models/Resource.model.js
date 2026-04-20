@@ -11,7 +11,8 @@ const resourceSchema = new Schema({
     division: { type: Schema.Types.ObjectId, ref: 'Division', required: true },
     session: { type: Schema.Types.ObjectId, ref: 'Session' },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    downloadCount: { type: Number, default: 0 }
+    downloadCount: { type: Number, default: 0 },
+    bootcamp: { type: Schema.Types.ObjectId, ref: 'Bootcamp', required: true }
 }, { timestamps: true });
 
 export default mongoose.model('Resource', resourceSchema);

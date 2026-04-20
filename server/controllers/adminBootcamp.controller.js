@@ -11,7 +11,7 @@ const createBootcampSchema = z.object({
   division_id: z.string().min(1),
   description: z.string().optional(),
   startDate: z.coerce.date(),
-  endDate: z.coerce.date().optional(),
+  endDate: z.coerce.date(),
   leadInstructor: z.string().optional(),
   students: z.array(z.string()).optional(),
 });

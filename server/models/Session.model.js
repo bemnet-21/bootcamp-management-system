@@ -1,10 +1,12 @@
 import mongoose, { Schema } from "mongoose";
 
+
 const sessionSchema = new Schema({
     title: { type: String, required: true },
     description: { type: String },
     instructor: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     division: { type: Schema.Types.ObjectId, ref: 'Division', required: true },
+    bootcamp: { type: Schema.Types.ObjectId, ref: 'Bootcamp', required: true }, // Added bootcamp reference
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     location: { type: String, required: true },

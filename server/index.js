@@ -9,7 +9,7 @@ import userRoutes from './routes/user.routes.js'
 import resourceRoutes from './routes/resource.routes.js'
 import divisionRoutes from './routes/division.routes.js'
 import sessionRoutes from './routes/session.routes.js'
-import adminBootcampRoutes from "./routes/adminBootcamp.routes.js";
+import attendanceRoutes from './routes/attendance.routes.js'
 
 dotenv.config()
 
@@ -22,12 +22,11 @@ app.use(express.json())
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 app.use('/auth', authRoutes)
-app.use("/admin/users", userRoutes);
+app.use('/admin/users', userRoutes)
 app.use('/sessions', sessionRoutes)
 app.use('/resources', resourceRoutes)
-app.use("/admin/divisions", divisionRoutes);
-app.use("/admin/bootcamps", adminBootcampRoutes);
-
+app.use('/divisions', divisionRoutes)
+app.use('/', attendanceRoutes)
 
 
 app.use((err, req, res, next) => {
@@ -40,4 +39,3 @@ await connectDB()
 app.listen(port, () => {
     console.log("Server is running on port: " + port)
 })
-// force restart

@@ -1,6 +1,6 @@
 import express from 'express';
 import AttendanceModel from '../models/Attendance.model.js';
-import { attendanceReport, bulkMarkAttendance, exportAttendanceReport, getAttendanceSheet, markExecusedAbsence, markIndividualAttendance } from '../controllers/attendance.controller.js';
+import { attendanceReport, bulkMarkAttendance, exportAttendanceReport, getAttendanceSheet, getPersonalAttendance, getPersonalAttendancePercentage, markExecusedAbsence, markIndividualAttendance } from '../controllers/attendance.controller.js';
 import protect from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -184,4 +184,51 @@ router.get('/bootcamps/:bootcampId/attendance/report', attendanceReport);
  *         description: Bootcamp not found
  */
 router.get('/bootcamps/:bootcampId/attendance/export', exportAttendanceReport);
+
+
+/**
+ * @swagger
+ * /student/bootcamps/{bootcampId}/attendance:
+ *   get:
+ *     summary: Get personal attendance records for a student in a bootcamp
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The bootcamp ID
+ *     responses:
+ *       200:
+ *         description: Personal attendance records retrieved successfully
+ *       404:
+ *         description: Bootcamp or attendance records not found
+ */
+router.get('/student/bootcamps/:bootcampId/attendance', getPersonalAttendance);
+
+/**
+ * @swagger
+ * /student/bootcamps/{bootcampId}/attendance/stat:
+ *   get:
+ *     summary: Get personal attendance percentage for a student in a bootcamp
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The bootcamp ID
+ *     responses:
+ *       200:
+ *         description: Personal attendance percentage retrieved successfully
+ *       404:
+ *         description: Bootcamp or attendance records not found
+ */
+router.get('/student/bootcamps/:bootcampId/attendance/stat', getPersonalAttendancePercentage)
 export default router;

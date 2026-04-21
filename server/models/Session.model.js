@@ -42,15 +42,14 @@ const sessionSchema = new Schema(
   { timestamps: true },
 );
 
-sessionSchema.pre("validate", function (next) {
+sessionSchema.pre("validate", function () {
   if (this.type === "online" && !this.link) {
-    return next(new Error("Online session must have a link"));
+    throw new Error("Online session must have a link");
   }
 
   if (this.type === "onPlace" && !this.location) {
-    return next(new Error("On-site session must have a location"));
+    throw new Error("On-site session must have a location");
   }
-  next();
 });
 
 sessionSchema.index({ division: 1, startTime: 1, endTime: 1 });

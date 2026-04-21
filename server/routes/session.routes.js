@@ -5,8 +5,9 @@ import {
   getSeassions,
   updateSession,
   deleteSession,
+  cancelSession,
 } from "../controllers/session.controller.js";
-
+import protect from "../middlewares/auth.js";
 const router = express.Router();
 
 /**
@@ -73,11 +74,12 @@ const router = express.Router();
  *       200:
  *         description: Session deleted
  */
-
+router.use(protect);
 router.post("/", createSession);
 router.get("/", getSeassions);
 router.get("/:id", getSingleSession);
 router.patch("/:id", updateSession);
 router.delete("/:id", deleteSession);
+router.patch("/:id/cancel", cancelSession);
 
 export default router;

@@ -11,6 +11,7 @@ import divisionRoutes from './routes/division.routes.js'
 import sessionRoutes from './routes/session.routes.js'
 import attendanceRoutes from './routes/attendance.routes.js'
 import adminBootcampRoutes from './routes/adminBootcamp.routes.js'
+import taskRoutes from './routes/task.routes.js'
 
 dotenv.config()
 
@@ -29,6 +30,7 @@ app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
 app.use('/divisions', divisionRoutes)
 app.use('/admin/bootcamps', adminBootcampRoutes)
+app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
 app.use('/', attendanceRoutes)
 
 

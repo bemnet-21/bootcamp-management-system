@@ -1,11 +1,11 @@
 import bootcamp from "./../models/Bootcamp.model.js";
 import UserModel from "../models/User.model.js";
 import z from "zod";
-import BootcampMember from "./../models/BootcampMember.model.js";
+import BootcampHelper from "../models/BootcampHelper.model.js";
+import bootcampSchema from "../models/Bootcamp.model.js";
 
 const addUserSchema = z.object({
   user: z.string().min(1),
-  role: z.string().min(1),
   permissions: z.object({
     studentManagement: z.boolean().optional(),
     sessions: z.boolean().optional(),
@@ -51,8 +51,6 @@ export const getSingleBootcamp = async (req, res) => {
 };
 
 export const addHelper = async (req, res) => {
-  console.log("here");
-
   const bootcampId = req.params.id;
   try {
     const validateData = addUserSchema.parse(req.body);
@@ -66,14 +64,13 @@ export const addHelper = async (req, res) => {
       });
     }
 
-    await BootcampMember.findOneAndUpdate(
+    await BootcampHelper.findOneAndUpdate(
       {
         bootcamp_id: bootcampId,
         user: validateData.user,
       },
       {
         $set: {
-          role: "helper",
           permissions: validateData.permissions,
         },
       },
@@ -98,7 +95,7 @@ export const getHelpersData = async (req, res) => {
   const bootcampId = req.params.bootcampId;
   const helperId = req.params.helperId;
   try {
-    const bootcampData = await BootcampMember.findOne({
+    const bootcampData = await BootcampHelper.findOne({
       bootcamp_id: bootcampId,
       user: helperId,
     });
@@ -114,7 +111,7 @@ export const deleteHelper = async (req, res, next) => {
   const bootcampId = req.params.bootcampId;
   const helperId = req.params.helperId;
   try {
-    const bootcampData = await BootcampMember.findOneAndDelete({
+    const bootcampData = await BootcampHelper.findOneAndDelete({
       bootcamp_id: bootcampId,
       user: helperId,
     });
@@ -122,6 +119,27 @@ export const deleteHelper = async (req, res, next) => {
       bootcampData,
     });
   } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getAllHelpers = async (req, res) => {
+  const bootcampId = req.params.bootcampId;
+
+  try {
+    const helpers = await BootcampHelper.find({
+      bootcamp_id: bootcampId,
+    });
+    if (!helpers || helpers.length === 0) {
+      return res.status(404).json({
+        message: "Helpers Not found ",
+      });
+    }
+    res.status(200).json({
+      helpers,
+    });
+  } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Internal server error" });
   }
 };

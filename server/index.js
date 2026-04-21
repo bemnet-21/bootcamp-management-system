@@ -30,6 +30,7 @@ app.use('/resources', resourceRoutes)
 app.use("/admin/divisions", divisionRoutes);
 app.use('/instructor/bootcamps' ,instructorRoutes)
 app.use("/admin/bootcamps" , adminBootcampRoutes);
+
 // app.use('/', attendanceRoutes)
 app.use((err, req, res, next) => {
     console.error(err)

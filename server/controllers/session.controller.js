@@ -232,6 +232,8 @@ export const updateSession = async (req, res) => {
       session.instructor = validatedData.instructor;
     if (validatedData.division !== undefined)
       session.division = validatedData.division;
+    if (validatedData.bootcamp !== undefined)
+      session.bootcamp = validatedData.bootcamp;
     if (validatedData.location !== undefined)
       session.location = validatedData.location;
     if (validatedData.status !== undefined)

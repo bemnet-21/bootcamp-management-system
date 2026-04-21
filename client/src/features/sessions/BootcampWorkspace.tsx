@@ -19,10 +19,27 @@ import PageShell from '@/src/components/layout/PageShell';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useSessionStore } from '@/src/store/useSessionStore';
+import { toast } from 'sonner';
 
 const BootcampWorkspace = () => {
   const [activeTab, setActiveTab] = useState('Curriculum');
   const navigate = useNavigate();
+  const { id } = useParams();
+  const { currentSession, fetchSessionById, updateSessionStatus, cancelSession, isLoading, error } = useSessionStore();
+
+  useEffect(() => {
+    if (!id) return;
+    fetchSessionById(id).catch((e: any) => {
+      toast.error(e?.response?.data?.message || e?.message || 'Failed to load session details');
+    });
+  }, [id, fetchSessionById]);
+
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
 
   const students = [
     { id: 1, name: 'Elena Rodriguez', project: 'Redux Project Template', time: '10m ago', enrollment: 'Mar 12, 2024', progress: 92, attendance: 98, status: 'active' as const, avatar: 'https://picsum.photos/seed/elena/200' },
@@ -81,6 +98,29 @@ const BootcampWorkspace = () => {
     }
   ];
 
+  if (isLoading && !currentSession) {
+    return (
+      <PageShell>
+        <div className="max-w-7xl mx-auto text-sm text-vanguard-muted">Loading session workspace...</div>
+      </PageShell>
+    );
+  }
+
+  if (!currentSession) {
+    return (
+      <PageShell>
+        <div className="max-w-7xl mx-auto">
+          <p className="text-sm text-vanguard-muted mb-4">Session not found.</p>
+          <Button onClick={() => navigate('/bootcamps')}>Back to Registry</Button>
+        </div>
+      </PageShell>
+    );
+  }
+
+  const startDate = new Date(currentSession.startTime);
+  const endDate = new Date(currentSession.endTime);
+  const durationHours = Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 3600000));
+
   return (
     <PageShell>
       <div className="max-w-7xl mx-auto">
@@ -94,28 +134,50 @@ const BootcampWorkspace = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
            <div>
               <div className="flex items-center space-x-3 mb-2">
-                 <Badge variant="upcoming">Cohort 2024.B</Badge>
-                 <Badge variant="active" className="bg-green-100 text-green-700">Active</Badge>
+                 <Badge variant="upcoming">{startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Badge>
+                 <Badge variant={currentSession.status === 'Completed' ? 'completed' : currentSession.status === 'Cancelled' ? 'upcoming' : 'active'}>
+                   {currentSession.status}
+                 </Badge>
               </div>
               <h1 className="text-5xl font-black text-vanguard-gray-800 tracking-tight leading-none mb-4">
-                Full-Stack React Engineer
+                {currentSession.title}
               </h1>
               <div className="flex flex-wrap items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-vanguard-gray-800 opacity-50">
-                 <div className="flex items-center"><MapPin size={14} className="mr-2" /> Development Division</div>
-                 <div className="flex items-center"><Calendar size={14} className="mr-2" /> Started March 12, 2024</div>
+                 <div className="flex items-center"><MapPin size={14} className="mr-2" /> {currentSession.divisionName}</div>
+                 <div className="flex items-center"><Calendar size={14} className="mr-2" /> Starts {startDate.toLocaleString()}</div>
               </div>
            </div>
-           <Button className="h-11 px-8 uppercase tracking-widest text-xs font-black shadow-lg">
-              <Pencil size={16} className="mr-2" /> Edit Bootcamp
-           </Button>
+           <div className="flex gap-3">
+             <Button
+               className="h-11 px-6 uppercase tracking-widest text-xs font-black shadow-lg"
+               onClick={async () => {
+                 await updateSessionStatus(currentSession.id, 'Completed');
+                 toast.success('Session marked completed');
+               }}
+               disabled={currentSession.status === 'Completed'}
+             >
+                <Pencil size={16} className="mr-2" /> Mark Completed
+             </Button>
+             <Button
+               variant="outline"
+               className="h-11 px-6 uppercase tracking-widest text-xs font-black"
+               onClick={async () => {
+                 await cancelSession(currentSession.id);
+                 toast.success('Session cancelled');
+               }}
+               disabled={currentSession.status === 'Cancelled'}
+             >
+               Cancel Session
+             </Button>
+           </div>
         </div>
 
         {/* Workspace Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-           <StatCard label="Total Students" value="320" icon={<Users size={20} />} trend={{ value: "+12% from last cohort", isUp: true }} />
-           <StatCard label="Avg. Attendance" value="94%" icon={<Clock size={20} />} progress={{ current: 94, total: 100 }} />
-           <StatCard label="Course Progress" value="16/24" subtitle="8 weeks remaining" icon={<CheckCircle2 size={20} />} />
-           <StatCard label="Completion Rate" value="88%" icon={<AlertCircle size={20} />} trend={{ value: "! 4 students at risk", isUp: false }} />
+           <StatCard label="Session Duration" value={`${durationHours}h`} icon={<Users size={20} />} trend={{ value: currentSession.location, isUp: true }} />
+           <StatCard label="Status" value={currentSession.status} icon={<Clock size={20} />} progress={{ current: currentSession.status === 'Completed' ? 100 : currentSession.status === 'Scheduled' ? 50 : 0, total: 100 }} />
+           <StatCard label="Instructor" value={currentSession.instructorName} subtitle="Assigned facilitator" icon={<CheckCircle2 size={20} />} />
+           <StatCard label="Ends At" value={endDate.toLocaleTimeString()} icon={<AlertCircle size={20} />} trend={{ value: endDate.toLocaleDateString(), isUp: true }} />
         </div>
 
         {/* Tabs */}

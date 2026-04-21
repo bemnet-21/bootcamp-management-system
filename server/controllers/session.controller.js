@@ -1,17 +1,35 @@
 import { z } from "zod";
 import SessionModel from "../models/Session.model.js";
 import mongoose from "mongoose";
+import { type } from "os";
 
-const CreateSeassionSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+const base = z.object({
+  title: z.string().min(1),
   description: z.string().optional(),
-  division: z.string().min(1, "Division ID is required"),
-  bootcamp: z.string().min(1, "Bootcamp ID is required"),
+  instructor: z.string().min(1),
+  division: z.string().min(1),
+  bootcamp: z.string().min(1),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
-  location: z.string().min(1, "Location is required"),
   status: z.enum(["Scheduled", "Cancelled", "Completed"]).default("Scheduled"),
 });
+
+const OnlineSession = base.extend({
+  type: z.literal("online"),
+  link: z.string().min(1, "Link is required for online session"),
+  location: z.undefined(),
+});
+
+const OnPlaceSession = base.extend({
+  type: z.literal("onPlace"),
+  location: z.string().min(1, "Location is required for on-site session"),
+  link: z.undefined(),
+});
+
+const CreateSeassionSchema = z.discriminatedUnion("type", [
+  OnlineSession,
+  OnPlaceSession,
+]);
 
 export const UpdateSessionSchema = z.object({
   title: z.string().min(1).optional(),
@@ -27,15 +45,14 @@ export const UpdateSessionSchema = z.object({
 
 export const createSession = async (req, res) => {
   try {
-    // validation
+    // 1. Validate input
     const validatedData = CreateSeassionSchema.parse(req.body);
-
 
     const startTime = new Date(validatedData.startTime);
     const endTime = new Date(validatedData.endTime);
     const now = new Date();
 
-    //time checks
+    // 2. Time rules
     if (endTime <= startTime) {
       return res.status(400).json({
         error: "Validation Error",
@@ -44,6 +61,7 @@ export const createSession = async (req, res) => {
     }
 
     const durationInMin = (endTime - startTime) / (1000 * 60);
+
     if (durationInMin < 30) {
       return res.status(400).json({
         error: "Invalid Session Duration",
@@ -58,29 +76,21 @@ export const createSession = async (req, res) => {
       });
     }
 
-    // session overlap check
-    const dayStart = new Date(startTime);
-    dayStart.setUTCHours(0, 0, 0, 0);
-
-    const dayEnd = new Date(startTime);
-    dayEnd.setUTCHours(23, 59, 59, 999);
-
-    const relatedSessions = await SessionModel.find({
-      startTime: { $gte: dayStart, $lte: dayEnd },
+    // 3. Session overlap check (simplified + correct)
+    const overlappingSessions = await SessionModel.find({
+      location: validatedData.location,
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
     });
 
-    const hasConflict = relatedSessions.some((s) => {
-      return startTime < s.endTime && endTime > s.startTime;
-    });
-
-    if (hasConflict) {
+    if (overlappingSessions.length > 0) {
       return res.status(409).json({
         error: "Schedule Conflict",
         message: "There is already a session scheduled at this time.",
       });
     }
 
-    //  check if the instructor is ocuppied
+    // 4. Instructor conflict check
     const instructorConflict = await SessionModel.findOne({
       instructor: validatedData.instructor,
       startTime: { $lt: endTime },
@@ -90,11 +100,12 @@ export const createSession = async (req, res) => {
     if (instructorConflict) {
       return res.status(409).json({
         error: "Schedule Conflict",
-        message: "The instructor is already assigned during this time.",
+        message:
+          "The instructor is already assigned to another session during this time.",
       });
     }
 
-    // ceate seassion
+    // 5. Create session
     const session = await SessionModel.create({
       ...validatedData,
       startTime,
@@ -109,8 +120,7 @@ export const createSession = async (req, res) => {
     if (err instanceof z.ZodError) {
       return res.status(400).json({
         error: "Validation Error",
-        message:
-          "Invalid input data. Please check required fields and formats.",
+        message: "Invalid input data. Please check required fields.",
       });
     }
 
@@ -326,7 +336,6 @@ export const updateSession = async (req, res) => {
   }
 };
 
-
 export const deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
@@ -369,4 +378,3 @@ export const deleteSession = async (req, res) => {
     });
   }
 };
-

@@ -10,6 +10,7 @@ interface User {
   email: string;
   role: 'ADMIN' | 'MENTOR' | 'STUDENT';
   division?: string;
+  divisions?: string[];
   avatar?: string;
 }
 
@@ -55,9 +56,13 @@ export const useAuthStore = create<AuthState>()(
       loginWithBackend: async (username: string, password: string) => {
         try {
           const response = await axiosInstance.post(ENDPOINTS.AUTH.LOGIN, { username, password });
-          const { user, token } = response.data;
-          localStorage.setItem('vanguard_token', token);
-          set({ user, token, isAuthenticated: true });
+          const { user: userData, accessToken } = response.data;
+          const user = {
+            ...userData,
+            name: `${userData.firstName} ${userData.lastName}`
+          };
+          localStorage.setItem('vanguard_token', accessToken);
+          set({ user, token: accessToken, isAuthenticated: true });
           return { success: true };
         } catch (error: any) {
           let message = 'Login failed. Please try again.';

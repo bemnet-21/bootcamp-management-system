@@ -26,7 +26,7 @@ const Login = () => {
       setError(result.message || 'Invalid credentials. Use the temporary password assigned by an admin.');
       return;
     }
-    // navigate('/');
+    navigate('/');
   };
 
   return (

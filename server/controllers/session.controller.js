@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 const CreateSeassionSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  instructor: z.string().min(1, "Instructor ID is required"),
   division: z.string().min(1, "Division ID is required"),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),

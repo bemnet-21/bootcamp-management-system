@@ -17,8 +17,8 @@ app.use(cors())
 app.use(express.json())
 
 app.use('/auth', authRoutes)
-app.use('/users', userRoutes)
-app.use('/sessions', sessionRoutes)
+app.use('/admin/users', userRoutes)
+app.use("/bootcamps/sessions", sessionRoutes);
 app.use('/resources', resourceRoutes)
 app.use('/divisions', divisionRoutes)
 

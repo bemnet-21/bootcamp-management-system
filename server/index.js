@@ -30,12 +30,26 @@ app.use('/resources', resourceRoutes)
 app.use("/admin/divisions", divisionRoutes);
 app.use('/instructor/bootcamps' ,instructorRoutes)
 app.use("/admin/bootcamps" , adminBootcampRoutes);
+app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
+app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
+app.use('/', attendanceRoutes)
+
 
 // app.use('/', attendanceRoutes)
 app.use((err, req, res, next) => {
-    console.error(err)
-    res.status(500).json({ error: 'Server Error', message: err.message || 'Internal server error.' })
-})
+    console.error(err);
+    let message = 'Internal server error.';
+    if (err) {
+        if (typeof err === 'string') message = err;
+        else if (err.message) message = err.message;
+        else if (err.error) message = err.error;
+    }
+    res.status(err.status || 500).json({
+        error: err.name || 'Server Error',
+        message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
 
 await connectDB()
 

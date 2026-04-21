@@ -8,7 +8,7 @@ export function checkRole(requiredRole) {
             return sendError(res, { status: 401, error: "Unauthorized", message: "Authentication is required." });
         }
         if (role !== required) {
-            return sendError(res, { status: 403, error: "Forbidden", message: "Insufficient permissions." });
+            return sendError(res, { status: 403, error: "Forbidden", message: "You are not permitted to perform this action." });
         }
         return next();
     };

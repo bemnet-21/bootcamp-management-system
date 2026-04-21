@@ -309,3 +309,61 @@ export const exportAttendanceReport = async (req, res) => {
     }
 }
 
+const getPersonalAttendanceSchema = z.object({
+    bootcampId: z.string().min(1)
+})
+export const getPersonalAttendance = async (req, res) => {
+    const parsedData = getPersonalAttendanceSchema.safeParse(req.params)
+    if (!parsedData.success) return res.status(400).json({ message: 'Invalid bootcamp ID', errors: parsedData.error.errors })
+
+    const { bootcampId } = parsedData.data
+    try {
+        const sessions = await SessionModel.find({ bootcamp: bootcampId })
+        const sessionIds = sessions.map(session => session._id)
+
+        const attendanceRecords = await AttendanceModel.find({ student: req.user.id, session: { $in: sessionIds } })
+            .populate('session', 'title startTime endTime')
+        
+        const attendance = attendanceRecords.map(record => ({
+            sessionTitle: record.session.title,
+            sessionStart: record.session.startTime,
+            sessionEnd: record.session.endTime,
+            status: record.status,
+            note: record.note
+        }))
+        
+        res.status(200).json({
+            message: 'Personal attendance retrieved successfully',
+            attendance
+        })
+    } catch (error) {
+        console.error('Error retrieving personal attendance:', error)
+        res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+
+
+export const getPersonalAttendancePercentage = async (req, res) => {
+    const parsedData = getPersonalAttendanceSchema.safeParse(req.params)
+    if (!parsedData.success) return res.status(400).json({ message: 'Invalid bootcamp ID', errors: parsedData.error.errors })
+
+    const { bootcampId } = parsedData.data
+    try {
+        const sessions = await SessionModel.find({ bootcamp: bootcampId })
+        const sessionIds = sessions.map(session => session._id)
+
+        const totalSessions = sessionIds.length
+        const attendedSessions = await AttendanceModel.countDocuments({ student: req.user.id, session: { $in: sessionIds }, status: 'Present' })
+        const attendancePercentage = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0
+
+        res.status(200).json({
+            message: 'Personal attendance percentage retrieved successfully',
+            attendancePercentage: attendancePercentage.toFixed(2) + '%'
+        })
+
+    } catch(error) {
+        console.error('Error calculating attendance percentage:', error)    
+        res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+

@@ -12,19 +12,21 @@ const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { loginWithBackend } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     const result = await loginWithBackend(username, password);
     setLoading(false);
     if (!result.success) {
-      toast.error(result.message || 'Invalid credentials. Use the temporary password assigned by an admin.');
+      setError(result.message || 'Invalid credentials. Use the temporary password assigned by an admin.');
       return;
     }
-    navigate('/');
+    // navigate('/');
   };
 
   return (
@@ -37,6 +39,11 @@ const Login = () => {
       >
         <p className="mb-8">Sign in with your issued email address and password to enter the Vanguard workspace.</p>
         
+        {error && (
+          <div className="w-full mb-4 p-4 rounded-lg bg-red-100 border border-red-400 text-red-700 text-base font-bold text-center animate-pulse">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleLogin} className="space-y-6">
           <Input 
             id="username"
@@ -45,7 +52,7 @@ const Login = () => {
             icon={<Mail size={18} />}
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => { setUsername(e.target.value); if (error) setError(null); }}
             required
           />
           
@@ -57,11 +64,11 @@ const Login = () => {
               icon={<Lock size={18} />}
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
               rightIcon={showPassword ? <EyeOff size={18} onClick={() => setShowPassword(false)} /> : <Eye size={18} onClick={() => setShowPassword(true)} />}
               required
             />
-            <Link to="#" className="absolute right-0 top-0 text-[10px] font-bold uppercase tracking-widest text-vanguard-blue hover:underline">
+            <Link to="/forgot-password" className="absolute right-0 top-0 text-[10px] font-bold uppercase tracking-widest text-vanguard-blue hover:underline">
               Forgot password?
             </Link>
           </div>

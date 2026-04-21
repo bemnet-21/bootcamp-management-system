@@ -74,7 +74,6 @@ const router = express.Router();
  *         description: Session deleted
  */
 
-
 router.post("/", createSession);
 router.get("/", getSeassions);
 router.get("/:id", getSingleSession);

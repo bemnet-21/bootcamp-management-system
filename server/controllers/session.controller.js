@@ -6,6 +6,7 @@ const CreateSeassionSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   division: z.string().min(1, "Division ID is required"),
+  bootcamp: z.string().min(1, "Bootcamp ID is required"),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   location: z.string().min(1, "Location is required"),
@@ -17,6 +18,7 @@ export const UpdateSessionSchema = z.object({
   description: z.string().optional(),
   instructor: z.string().min(1).optional(),
   division: z.string().min(1).optional(),
+  bootcamp: z.string().min(1).optional(),
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
   location: z.string().min(1).optional(),
@@ -27,6 +29,7 @@ export const createSession = async (req, res) => {
   try {
     // validation
     const validatedData = CreateSeassionSchema.parse(req.body);
+
 
     const startTime = new Date(validatedData.startTime);
     const endTime = new Date(validatedData.endTime);
@@ -366,3 +369,4 @@ export const deleteSession = async (req, res) => {
     });
   }
 };
+

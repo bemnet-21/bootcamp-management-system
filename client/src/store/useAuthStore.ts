@@ -56,13 +56,21 @@ export const useAuthStore = create<AuthState>()(
       loginWithBackend: async (username: string, password: string) => {
         try {
           const response = await axiosInstance.post(ENDPOINTS.AUTH.LOGIN, { username, password });
-          const { user: userData, accessToken } = response.data;
-          const user = {
-            ...userData,
-            name: `${userData.firstName} ${userData.lastName}`
+          const { user, token, accessToken } = response.data;
+          const resolvedToken = token || accessToken;
+          if (!resolvedToken) {
+            return { success: false, message: 'Login response did not include a valid token.' };
+          }
+
+          const mappedUser = {
+            id: user?.id || '',
+            name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'User',
+            email: user?.email || '',
+            role: roleMap[user?.role as keyof typeof roleMap] || 'STUDENT',
+            avatar: `https://picsum.photos/seed/${encodeURIComponent(user?.username || user?.email || 'user')}/200`,
           };
-          localStorage.setItem('vanguard_token', accessToken);
-          set({ user, token: accessToken, isAuthenticated: true });
+          localStorage.setItem('vanguard_token', resolvedToken);
+          set({ user: mappedUser, token: resolvedToken, isAuthenticated: true });
           return { success: true };
         } catch (error: any) {
           let message = 'Login failed. Please try again.';

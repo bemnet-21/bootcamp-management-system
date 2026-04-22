@@ -4,39 +4,33 @@ import { Button } from '@/src/components/ui/Button';
 import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
 import { 
-  Database, 
   Terminal, 
-  Shield, 
-  Cpu,
   Check
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+import axiosInstance from '@/src/api/axiosInstance';
+import { ENDPOINTS } from '@/src/api/endpoints';
 
 interface AddMemberFormProps {
   onSuccess: () => void;
   initialData?: Member | null;
 }
 
-const PILLARS = [
-  { id: 'dev', name: 'Development', icon: Terminal, color: 'vanguard-blue' },
-  { id: 'ds', name: 'Data Science', icon: Database, color: 'purple-500' },
-  { id: 'cyber', name: 'Cybersecurity', icon: Shield, color: 'vanguard-gray-800' },
-  { id: 'cpd', name: 'CPD', icon: Cpu, color: 'emerald-500' }
-];
-
-const generateTemporaryPassword = () =>
-  `VG-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${new Date().getFullYear()}`;
+type DivisionOption = { id: string; name: string };
 
 const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
   const { id: divisionIdFromUrl } = useParams();
   const { addMember, updateMember } = useUserStore();
-  const [temporaryPassword] = useState(() => initialData?.temporaryPassword ?? generateTemporaryPassword());
+  const [divisions, setDivisions] = useState<DivisionOption[]>([]);
+  const [divisionsLoading, setDivisionsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
+    firstName: initialData?.name?.split(' ')?.[0] || '',
+    lastName: initialData?.name?.split(' ')?.slice(1).join(' ') || '',
+    username: initialData?.email?.split('@')?.[0] || '',
     email: initialData?.email || '',
     role: (initialData?.role || 'Student') as 'Admin' | 'Instructor' | 'Student',
-    divisionId: initialData?.divisionId || divisionIdFromUrl || 'dev'
+    divisionId: initialData?.divisionIds?.[0] || divisionIdFromUrl || ''
   });
 
   useEffect(() => {
@@ -45,9 +39,41 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
     }
   }, [divisionIdFromUrl, initialData]);
 
-  const isFormValid = formData.name && formData.email && formData.divisionId;
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setDivisionsLoading(true);
+      try {
+        const res = await axiosInstance.get(ENDPOINTS.DIVISIONS.BASE, { params: { limit: 100 } });
+        const items = (res.data?.data ?? []) as any[];
+        const options: DivisionOption[] = items
+          .map((d) => ({ id: d._id ?? d.id, name: d.name }))
+          .filter((d) => d.id && d.name);
+        if (!mounted) return;
+        setDivisions(options);
+        if (!formData.divisionId && options[0]?.id) {
+          setFormData((prev) => ({ ...prev, divisionId: options[0].id }));
+        }
+      } catch {
+        // If divisions can't be fetched (e.g. not logged in), keep UI usable with an empty list.
+      } finally {
+        if (mounted) setDivisionsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const isFormValid =
+    formData.firstName.trim().length >= 2 &&
+    formData.lastName.trim().length >= 2 &&
+    formData.username.trim().length >= 3 &&
+    formData.email &&
+    formData.divisionId;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!isFormValid) {
@@ -55,26 +81,35 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
       return;
     }
 
-    if (initialData) {
-      updateMember(initialData.id, {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        divisionId: formData.divisionId
-      });
-      toast.success('Member updated successfully!');
-    } else {
-      const createdMember = addMember({
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        divisionId: formData.divisionId,
-        temporaryPassword,
-      });
-      toast.success(`Member added. Temporary password: ${createdMember.temporaryPassword}`);
+    try {
+      if (initialData) {
+        await updateMember(initialData.id, {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+          role: formData.role,
+          divisions: [formData.divisionId],
+        });
+        toast.success('Member updated successfully!');
+      } else {
+        await addMember({
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+          role: formData.role,
+          divisions: [formData.divisionId],
+          status: 'Active',
+        });
+        toast.success('Member added. A temporary password was emailed to the user.');
+      }
+
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'Request failed.');
     }
 
-    onSuccess();
   };
 
   return (
@@ -82,14 +117,40 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
       <div className="space-y-5">
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-vanguard-muted uppercase tracking-widest">
-            Identity / Full Name
+            Identity / First Name
           </label>
           <input
             type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            value={formData.firstName}
+            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
             className="w-full h-11 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm focus:ring-1 focus:ring-vanguard-blue focus:border-vanguard-blue outline-none transition-all placeholder:text-vanguard-muted/50"
-            placeholder="e.g. Johnathan Doe"
+            placeholder="e.g. Johnathan"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-vanguard-muted uppercase tracking-widest">
+            Identity / Last Name
+          </label>
+          <input
+            type="text"
+            value={formData.lastName}
+            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+            className="w-full h-11 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm focus:ring-1 focus:ring-vanguard-blue focus:border-vanguard-blue outline-none transition-all placeholder:text-vanguard-muted/50"
+            placeholder="e.g. Doe"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-bold text-vanguard-muted uppercase tracking-widest">
+            Identity / Username
+          </label>
+          <input
+            type="text"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            className="w-full h-11 px-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm focus:ring-1 focus:ring-vanguard-blue focus:border-vanguard-blue outline-none transition-all placeholder:text-vanguard-muted/50"
+            placeholder="e.g. jdoe"
           />
         </div>
 
@@ -134,15 +195,15 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
             Pillar Assignment / Division
           </label>
           <div className="grid grid-cols-2 gap-3">
-            {PILLARS.map((pillar) => {
-              const Icon = pillar.icon;
-              const isActive = formData.divisionId === pillar.id;
+            {(divisions.length > 0 ? divisions : []).map((division) => {
+              const Icon = Terminal;
+              const isActive = formData.divisionId === division.id;
               
               return (
                 <button
-                  key={pillar.id}
+                  key={division.id}
                   type="button"
-                  onClick={() => setFormData({ ...formData, divisionId: pillar.id })}
+                  onClick={() => setFormData({ ...formData, divisionId: division.id })}
                   className={cn(
                     "relative flex group items-center p-3 rounded-2xl border-2 transition-all text-left",
                     isActive 
@@ -161,7 +222,7 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
                       "text-[13px] font-bold tracking-tight leading-none mb-1",
                       isActive ? "text-vanguard-gray-800" : "text-vanguard-muted"
                     )}>
-                      {pillar.name}
+                      {division.name}
                     </p>
                     <p className="text-[10px] text-vanguard-muted opacity-60 font-medium uppercase tracking-tighter">
                       Vanguard Pillar
@@ -179,6 +240,14 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
               );
             })}
           </div>
+          {divisionsLoading && (
+            <p className="text-[11px] text-vanguard-muted font-medium">Loading divisions…</p>
+          )}
+          {!divisionsLoading && divisions.length === 0 && (
+            <p className="text-[11px] text-vanguard-muted font-medium">
+              Divisions couldn’t be loaded. Log in as Admin to create members.
+            </p>
+          )}
         </div>
         <div className="space-y-3">
           <label className="text-[11px] font-bold text-vanguard-muted uppercase tracking-widest">
@@ -187,12 +256,12 @@ const AddMemberForm = ({ onSuccess, initialData }: AddMemberFormProps) => {
           <div className="p-4 bg-[#F8FAFC] border border-dashed border-[#E2E8F0] rounded-2xl flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-vanguard-gray-800 uppercase tracking-tighter">Temporary Access Key</p>
-              <p className="text-[13px] font-mono text-vanguard-blue mt-0.5">{temporaryPassword}</p>
+              <p className="text-[13px] font-mono text-vanguard-blue mt-0.5">Generated by server</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] text-vanguard-muted font-medium italic">Reset Required</p>
               <p className="text-[9px] text-vanguard-muted uppercase tracking-tighter mt-0.5">
-                {initialData ? 'Existing invite credential' : 'Use on main login page'}
+                {initialData ? 'Existing user account' : 'Sent by email on create'}
               </p>
             </div>
           </div>

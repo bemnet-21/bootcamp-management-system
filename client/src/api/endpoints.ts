@@ -5,6 +5,15 @@ export const ENDPOINTS = {
     REQUEST_RESET: '/auth/password-reset-request',
     RESET_PASSWORD: '/auth/password-reset-confirm',
   },
+  USERS: {
+    BASE: '/admin/users',
+    DETAIL: (id: string) => `/admin/users/${id}`,
+    STATUS: (id: string) => `/admin/users/${id}/status`,
+  },
+  SESSIONS: {
+    BASE: '/sessions',
+    DETAIL: (id: string) => `/sessions/${id}`,
+  },
   DIVISIONS: {
     BASE: '/divisions',
     DETAIL: (id: string) => `/divisions/${id}`,

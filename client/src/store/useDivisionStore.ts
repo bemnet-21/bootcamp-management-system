@@ -1,4 +1,12 @@
 import { create } from 'zustand';
+import axiosInstance from '@/src/api/axiosInstance';
+import { ENDPOINTS } from '@/src/api/endpoints';
+import {
+  divisionDefaultHead,
+  divisionHeroImage,
+  divisionVisualKeyFromName,
+  type DivisionVisualKey,
+} from '@/src/lib/divisionPresentation';
 
 interface DivisionHead {
   name: string;
@@ -21,91 +29,128 @@ export interface Division {
   image: string;
   head: DivisionHead;
   stats: DivisionStats;
+  /** Derived from name for theming (Data Science, Development, Cybersecurity, CPD). */
+  visualKey: DivisionVisualKey;
+}
+
+type ApiDivisionRow = {
+  _id: string;
+  name: string;
+  description?: string;
+  studentCount?: number;
+  sessionCount?: number;
+  groupCount?: number;
+  resourceCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+function mapRowToDivision(row: ApiDivisionRow): Division {
+  const id = String(row._id);
+  const visualKey = divisionVisualKeyFromName(row.name || '');
+  const head = divisionDefaultHead(visualKey);
+  return {
+    id,
+    name: row.name,
+    description: row.description?.trim() || '',
+    image: divisionHeroImage(visualKey),
+    head,
+    visualKey,
+    stats: {
+      members: Number(row.studentCount ?? 0),
+      activeBootcamps: 0,
+      satisfaction: 94,
+      memberTrend: '—',
+    },
+  };
 }
 
 interface DivisionState {
-  activeDivision: Division | null;
   divisions: Division[];
+  activeDivision: Division | null;
+  isLoading: boolean;
+  error: string | null;
   setActiveDivision: (division: Division | null) => void;
   getDivisionById: (id: string) => Division | undefined;
+  fetchDivisions: () => Promise<void>;
+  ensureDivision: (id: string) => Promise<Division | undefined>;
+  createDivision: (payload: { name: string; description?: string }) => Promise<void>;
+  updateDivision: (id: string, payload: { name?: string; description?: string }) => Promise<void>;
+  deleteDivision: (id: string) => Promise<void>;
 }
 
 export const useDivisionStore = create<DivisionState>((set, get) => ({
+  divisions: [],
   activeDivision: null,
-  divisions: [
-    {
-      id: 'ds',
-      name: 'Data Science',
-      description: 'Driving institutional intelligence through advanced analytics, machine learning paths, and big data architecture cohorts.',
-      image: 'https://picsum.photos/seed/datascience/800/600',
-      head: {
-        name: 'Prof. Marcus Thorne',
-        role: 'Head of Data Science',
-        avatar: 'https://picsum.photos/seed/marcus-head/400',
-        bio: 'Expert in Large Language Models and Neural Architecture. Leading the Vanguard AI initiative for over 6 years.'
-      },
-      stats: {
-        members: 438,
-        activeBootcamps: 12,
-        satisfaction: 96,
-        memberTrend: '+18% vs last quarter'
-      }
-    },
-    {
-      id: 'dev',
-      name: 'Development',
-      description: 'Full-stack engineering excellence, focusing on modern frameworks, cloud-native architecture, and agile delivery systems.',
-      image: 'https://picsum.photos/seed/dev/800/600',
-      head: {
-        name: 'Julia Vane',
-        role: 'Engineering Lead',
-        avatar: 'https://picsum.photos/seed/julia-head/400',
-        bio: 'Full-stack architect specializing in high-scale React systems. Former Principal Engineer at major tech hubs.'
-      },
-      stats: {
-        members: 612,
-        activeBootcamps: 24,
-        satisfaction: 94,
-        memberTrend: '+12% vs last quarter'
-      }
-    },
-    {
-      id: 'cyber',
-      name: 'Cybersecurity',
-      description: 'Protecting the digital frontier with ethical hacking, defensive security operations, and regulatory compliance pathways.',
-      image: 'https://picsum.photos/seed/cyber/800/600',
-      head: {
-        name: 'Dr. Sarah Chen',
-        role: 'Security Director',
-        avatar: 'https://picsum.photos/seed/sarah-head/400',
-        bio: 'Renowned expert in Cryptography and Network Security. Overseeing defensive strategies for Vanguard Infrastructure.'
-      },
-      stats: {
-        members: 285,
-        activeBootcamps: 8,
-        satisfaction: 98,
-        memberTrend: '+5% vs last quarter'
-      }
-    },
-    {
-      id: 'cpd',
-      name: 'CPD',
-      description: 'Continuous Professional Development focusing on executive leadership, soft skills, and industry-specific certifications.',
-      image: 'https://picsum.photos/seed/leadership/800/600',
-      head: {
-        name: 'David Thorne',
-        role: 'Program Director',
-        avatar: 'https://picsum.photos/seed/david-head/400',
-        bio: 'Strategic leadership coach with 15 years of experience in executive education and corporate growth.'
-      },
-      stats: {
-        members: 920,
-        activeBootcamps: 42,
-        satisfaction: 92,
-        memberTrend: '+25% vs last quarter'
-      }
-    },
-  ],
+  isLoading: false,
+  error: null,
+
   setActiveDivision: (division) => set({ activeDivision: division }),
-  getDivisionById: (id) => get().divisions.find(d => d.id === id),
+
+  getDivisionById: (id) => get().divisions.find((d) => d.id === id),
+
+  fetchDivisions: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.DIVISIONS.BASE, { params: { limit: 200 } });
+      const rows: ApiDivisionRow[] = res.data?.data ?? [];
+      set({
+        divisions: rows.map(mapRowToDivision),
+        isLoading: false,
+      });
+    } catch (e: any) {
+      const message = e?.response?.data?.message || e?.message || 'Failed to load divisions.';
+      set({ isLoading: false, error: message });
+      throw e;
+    }
+  },
+
+  ensureDivision: async (id) => {
+    const existing = get().getDivisionById(id);
+    if (existing) return existing;
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.DIVISIONS.DETAIL(id));
+      const row: ApiDivisionRow | undefined = res.data?.data;
+      if (!row || !row.name) return undefined;
+      const div = mapRowToDivision({ ...row, _id: row._id || id });
+      set((s) => {
+        if (s.divisions.some((d) => d.id === div.id)) return s;
+        return { divisions: [...s.divisions, div] };
+      });
+      return div;
+    } catch {
+      return undefined;
+    }
+  },
+
+  createDivision: async ({ name, description }) => {
+    set({ error: null });
+    await axiosInstance.post(ENDPOINTS.DIVISIONS.BASE, {
+      name: name.trim(),
+      description: description?.trim(),
+    });
+    await get().fetchDivisions();
+  },
+
+  updateDivision: async (id, payload) => {
+    set({ error: null });
+    await axiosInstance.put(ENDPOINTS.DIVISIONS.DETAIL(id), {
+      ...(payload.name != null ? { name: payload.name.trim() } : {}),
+      ...(payload.description != null ? { description: payload.description.trim() } : {}),
+    });
+    await get().fetchDivisions();
+    const updated = get().getDivisionById(id);
+    if (updated && get().activeDivision?.id === id) {
+      set({ activeDivision: updated });
+    }
+  },
+
+  deleteDivision: async (id) => {
+    set({ error: null });
+    await axiosInstance.delete(ENDPOINTS.DIVISIONS.DETAIL(id));
+    set((s) => ({
+      divisions: s.divisions.filter((d) => d.id !== id),
+      activeDivision: s.activeDivision?.id === id ? null : s.activeDivision,
+    }));
+  },
 }));

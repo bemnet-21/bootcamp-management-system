@@ -1,16 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-// import { useUserStore } from './useUserStore';
 import axiosInstance from '../api/axiosInstance';
 import { ENDPOINTS } from '../api/endpoints';
 
-interface User {
+export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: 'ADMIN' | 'MENTOR' | 'STUDENT' | 'LEAD_INSTRUCTOR' | 'HELPER_INSTRUCTOR';
   division?: string;
-  divisions?: string[];
   avatar?: string;
   permissions?: string[];
 }
@@ -18,24 +16,15 @@ interface User {
 type AppRole = 'admin' | 'student' | 'lead_instructor' | 'helper_instructor';
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   role: AppRole | null;
   permissions: string[];
-  login: (user: User, token: string) => void;
+  login: (user: AuthUser, token: string) => void;
   logout: () => void;
   loginWithBackend: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
 }
-
-const DEFAULT_ADMIN = {
-  id: '1',
-  name: 'Admin Portal',
-  email: 'admin@vanguard.edu',
-  role: 'ADMIN' as const,
-  avatar: 'https://picsum.photos/seed/admin/200',
-  password: 'vanguard-admin',
-};
 
 const roleMap = {
   Admin: 'ADMIN',
@@ -167,3 +156,5 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+export const isStaffRole = (role: AuthUser['role'] | undefined) => role === 'ADMIN' || role === 'MENTOR';

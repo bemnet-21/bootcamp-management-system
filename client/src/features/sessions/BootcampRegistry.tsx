@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useDivisionStore } from '@/src/store/useDivisionStore';
 import { StatCard } from '@/src/components/shared/StatCard';
 import { Badge } from '@/src/components/ui/Badge';
@@ -11,8 +13,10 @@ import { cn } from '@/src/lib/utils';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/src/store/useSessionStore';
+import { useBootcampStore } from '@/src/store/useBootcampStore';
 import axiosInstance from '@/src/api/axiosInstance';
 import { ENDPOINTS } from '@/src/api/endpoints';
+import { adminRoutes } from '@/src/constants/routes';
 
 const asDisplayStatus = (status: 'Scheduled' | 'Cancelled' | 'Completed') => {
   if (status === 'Completed') return 'completed';
@@ -33,7 +37,8 @@ const formatDuration = (start: string, end: string) => {
 const BootcampRegistry = () => {
   const { id: divisionId } = useParams();
   const navigate = useNavigate();
-  const { getDivisionById } = useDivisionStore();
+  const { getDivisionById, fetchDivisions, ensureDivision } = useDivisionStore();
+  const { fetchBootcamps } = useBootcampStore();
   const { sessions, fetchSessions, createSession, updateSession, updateSessionStatus, cancelSession, isLoading, error } = useSessionStore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -155,6 +160,12 @@ const BootcampRegistry = () => {
     rawStatus: s.status,
   }));
 
+  useEffect(() => {
+    void fetchBootcamps();
+    void fetchDivisions();
+    if (divisionId) void ensureDivision(divisionId);
+  }, [divisionId, fetchBootcamps, fetchDivisions, ensureDivision]);
+
   const columns = [
     { 
       header: 'Program Details', 
@@ -176,7 +187,11 @@ const BootcampRegistry = () => {
     { 
       header: 'Status', 
       key: 'status',
-      render: (item: any) => <Badge variant={item.status}>{item.status}</Badge>
+      render: (item: any) => (
+        <div className="flex flex-col gap-1">
+          <Badge variant={item.status}>{item.lifecycle}</Badge>
+        </div>
+      )
     },
     { 
       header: 'Students', 
@@ -212,7 +227,7 @@ const BootcampRegistry = () => {
            <button 
              onClick={(e) => {
                e.stopPropagation();
-               navigate(`/bootcamps/${item.id}`);
+               navigate(adminRoutes.bootcamp(item.id));
              }}
              className="p-2 hover:bg-vanguard-gray-100 rounded-lg text-vanguard-gray-800 opacity-40 hover:opacity-100 transition-all"
            >
@@ -314,7 +329,7 @@ const BootcampRegistry = () => {
             <h1 className="text-4xl font-black text-vanguard-gray-800 tracking-tight tracking-tighter">Bootcamps</h1>
           </div>
           <div className="flex space-x-3">
-             <Button className="rounded-lg h-10 px-6 uppercase tracking-widest text-xs font-black" onClick={() => setIsCreateOpen(true)}>
+             <Button className="rounded-lg h-10 px-6 uppercase tracking-widest text-xs font-black bg-vanguard-blue text-white hover:bg-vanguard-blue-dark shadow-sm" onClick={() => setIsCreateOpen(true)}>
                 <Plus size={16} className="mr-2" /> Add Program
              </Button>
              <Button variant="outline" className="rounded-lg h-10 px-4 flex items-center bg-vanguard-blue-light border-none text-vanguard-blue">
@@ -353,10 +368,12 @@ const BootcampRegistry = () => {
            </div>
         </div>
 
+        {isLoading && <p className="text-sm text-vanguard-muted mb-4">Loading bootcamps…</p>}
+
         <DataTable 
           columns={columns} 
           data={tableData}
-          onRowClick={(item: any) => navigate(`/bootcamps/${item.id}`)}
+          onRowClick={(item: any) => navigate(adminRoutes.bootcamp(item.id))}
         />
         {isLoading && <p className="text-sm text-vanguard-muted mt-4">Loading sessions...</p>}
         {!isLoading && currentDivision && filteredBootcamps.length === 0 && (

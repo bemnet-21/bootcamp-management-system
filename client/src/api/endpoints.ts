@@ -17,11 +17,14 @@ export const ENDPOINTS = {
   DIVISIONS: {
     BASE: '/divisions',
     DETAIL: (id: string) => `/divisions/${id}`,
+    STATISTICS: (id: string) => `/divisions/${id}/statistics`,
     BOOTCAMPS: (id: string) => `/divisions/${id}/bootcamps`,
   },
   BOOTCAMPS: {
     BASE: '/admin/bootcamps', // Admin only listing
     DETAIL: (id: string) => `/admin/bootcamps/${id}`,
+    ASSIGN_LEAD: (id: string) => `/admin/bootcamps/${id}/assign-lead`,
+    DEACTIVATE: (id: string) => `/admin/bootcamps/${id}/deactivate`,
     RESOURCES: (bootcampId: string) => `/bootcamps/${bootcampId}/resources`,
     ATTENDANCE: (bootcampId: string) => `/student/bootcamps/${bootcampId}/attendance`,
     ATTENDANCE_STATS: (bootcampId: string) => `/student/bootcamps/${bootcampId}/attendance/stat`,

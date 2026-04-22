@@ -5,6 +5,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { ADMIN_PATH } from '@/src/constants/routes';
 import { Toaster, toast } from 'sonner';
 
 const Login = () => {
@@ -13,7 +14,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { loginWithBackend } = useAuthStore();
+  const { loginWithBackend, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -26,8 +27,14 @@ const Login = () => {
       setError(result.message || 'Invalid credentials. Use the temporary password assigned by an admin.');
       return;
     }
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'STUDENT') {
+      logout();
+      setError('Student accounts must use the main student login page, not Admin login.');
+      return;
+    }
     toast.success('Login successful');
-    navigate('/');
+    navigate(ADMIN_PATH);
   };
 
   return (
@@ -99,6 +106,16 @@ const Login = () => {
             </p>
           </div>
         </form>
+
+        <p className="mt-8 text-center text-sm text-vanguard-muted">
+          Student?{' '}
+          <Link
+            to="/login"
+            className="font-bold text-vanguard-blue hover:underline underline-offset-2"
+          >
+            Back to student login
+          </Link>
+        </p>
       </AuthLayout>
     </>
   );

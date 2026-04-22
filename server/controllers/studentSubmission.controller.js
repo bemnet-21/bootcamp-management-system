@@ -71,10 +71,17 @@ export const updateSubmission = async (req, res) => {
 export const getPersonalSubmissions = async (req, res) => {
     const studentId = req.user.id
     try {
-        const submissions = await SubmissionModel.find({ student: studentId }).populate({
-            path: "task",
-            populate: { path: "bootcamp", select: "name" }
-        });
+        const submissions = await SubmissionModel.find({ student: studentId })
+                                                 .populate("task", "title submissionType")
+                                                 .sort({ createdAt: -1 })
+                                                 .lean();
+
+        if(submissions.length === 0) {
+            return res.status(200).json({
+                message: "No submissions found",
+                submissions: []
+            });
+        }
 
         return res.status(200).json({
             message: "Personal submissions retrieved successfully",
@@ -83,5 +90,42 @@ export const getPersonalSubmissions = async (req, res) => {
     } catch (err) {
         return res.status(500).json({ error: "Internal Server Error", message: err.message });
     }
+}
 
+const getSubmissionGradeSchema = z.object({
+    submissionId: z.string().min(1, "Submission ID is required")
+})
+export const getSubmissionGrade = async (req, res) => {
+    const studentId = req.user.id
+    const parseResult = getSubmissionGradeSchema.safeParse({ submissionId: req.params.submissionId });
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+         });
+    }   
+    try {
+        const { submissionId } = parseResult.data;
+        const submission = await SubmissionModel.findById(submissionId).populate("task", "title submissionType");
+        if (!submission) return res.status(404).json({ message: "Submission not found" });
+        if (submission.student.toString() !== studentId.toString()) {
+            return res.status(403).json({ error: "Forbidden", message: "You can only view your own grades" });
+        }
+
+        if (submission.status !== "Graded") {
+            submission.score = null;
+            submission.instructorFeedback = "Not graded yet";
+        }   
+        res.status(200).json({
+            message: "Submission grade retrieved successfully",
+            submission: {
+                id: submission._id,
+                task: submission.task,
+                score: submission.score,
+                feedback: submission.instructorFeedback
+            }
+        });
+    } catch(err) {
+        return res.status(500).json({ error: "Internal Server Error", message: err.message });
+    }
 }

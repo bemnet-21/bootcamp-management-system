@@ -17,7 +17,12 @@ interface DataTableProps<T> {
 
 const DataTable = <T extends { id: string | number }>({ columns, data, className, onRowClick }: DataTableProps<T>) => {
   return (
-    <div className={cn("w-full overflow-x-auto rounded-xl border border-vanguard-gray-200 bg-white", className)}>
+    <div
+      className={cn(
+        "relative w-full overflow-x-auto overflow-y-visible rounded-xl border border-vanguard-gray-200 bg-white",
+        className,
+      )}
+    >
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b border-vanguard-gray-200 bg-[#FAFBFC]">

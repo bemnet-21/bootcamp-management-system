@@ -5,7 +5,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { ADMIN_PATH } from '@/src/constants/routes';
+import { adminRoutes } from '@/src/constants/routes';
 import { Toaster, toast } from 'sonner';
 
 const Login = () => {
@@ -33,7 +33,7 @@ const Login = () => {
       setError('Student accounts must use the main student login page, not Admin login.');
       return;
     }
-    navigate(ADMIN_PATH);
+    navigate(adminRoutes.manageDivisions);
   };
 
   return (

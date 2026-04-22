@@ -15,7 +15,6 @@ import BootcampRegistry from './features/sessions/BootcampRegistry';
 import BootcampWorkspace from './features/sessions/BootcampWorkspace';
 import MembersPage from './features/users/MembersPage';
 import MemberProfile from './features/users/pages/MemberProfile';
-import MentorsPage from './features/mentors/MentorsPage';
 import SettingsPage from './features/settings/SettingsPage';
 import AdminDivisionsPage from './features/admin/AdminDivisionsPage';
 import AdminBootcampsManagePage from './features/admin/AdminBootcampsManagePage';
@@ -66,7 +65,7 @@ const StudentProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminLoginGate = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuthStore();
   if (isAuthenticated && isStaffRole(user?.role)) {
-    return <Navigate to={ADMIN_PATH} replace />;
+    return <Navigate to={adminRoutes.manageDivisions} replace />;
   }
   if (isAuthenticated && user?.role === 'STUDENT') {
     return <Navigate to={`${PORTAL_BASE}/dashboard`} replace />;
@@ -81,7 +80,7 @@ const StudentLoginGate = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to={`${PORTAL_BASE}/dashboard`} replace />;
   }
   if (isAuthenticated && isStaffRole(user?.role)) {
-    return <Navigate to={ADMIN_PATH} replace />;
+    return <Navigate to={adminRoutes.manageDivisions} replace />;
   }
   return <>{children}</>;
 };
@@ -146,12 +145,6 @@ export default function App() {
           </StaffProtectedRoute>
         } />
 
-        <Route path={`${ADMIN_PATH}/divisions/:id/mentors`} element={
-          <StaffProtectedRoute>
-            <MentorsPage />
-          </StaffProtectedRoute>
-        } />
-
         <Route path={`${ADMIN_PATH}/divisions/:id/settings`} element={
           <AdminProtectedRoute>
             <SettingsPage />
@@ -179,12 +172,6 @@ export default function App() {
         <Route path={`${ADMIN_PATH}/members/:memberId`} element={
           <StaffProtectedRoute>
             <MemberProfile />
-          </StaffProtectedRoute>
-        } />
-
-        <Route path={`${ADMIN_PATH}/mentors`} element={
-          <StaffProtectedRoute>
-            <MentorsPage />
           </StaffProtectedRoute>
         } />
 

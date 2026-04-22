@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import PageShell from '@/src/components/layout/PageShell';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
@@ -18,6 +18,7 @@ type InstructorOption = { id: string; label: string };
 
 const AdminBootcampsManagePage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { divisions, fetchDivisions } = useDivisionStore();
   const {
     bootcamps,
@@ -42,6 +43,9 @@ const AdminBootcampsManagePage = () => {
 
   const [assignBootcampId, setAssignBootcampId] = useState<string | null>(null);
   const [assignInstructorId, setAssignInstructorId] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Draft' | 'Archived'>('all');
 
   useEffect(() => {
     fetchDivisions().catch((e) => toast.error(e?.response?.data?.message || 'Could not load divisions.'));
@@ -136,10 +140,17 @@ const AdminBootcampsManagePage = () => {
     }
   };
 
-  const sortedBootcamps = useMemo(
-    () => [...bootcamps].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
-    [bootcamps],
-  );
+  const sortedBootcamps = useMemo(() => {
+    const normalizedName = nameFilter.trim().toLowerCase();
+    return [...bootcamps]
+      .filter((bootcamp) => {
+        const matchesName = !normalizedName || bootcamp.name.toLowerCase().includes(normalizedName);
+        const matchesDivision = divisionFilter === 'all' || bootcamp.divisionId === divisionFilter;
+        const matchesStatus = statusFilter === 'all' || bootcamp.lifecycle === statusFilter;
+        return matchesName && matchesDivision && matchesStatus;
+      })
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [bootcamps, nameFilter, divisionFilter, statusFilter]);
 
   return (
     <PageShell>
@@ -177,6 +188,37 @@ const AdminBootcampsManagePage = () => {
               <Plus size={16} className="mr-2" /> New bootcamp
             </Button>
           </div>
+          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Input
+              id="bootcamp-name-filter"
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              placeholder="Search by bootcamp name"
+              className="mt-0"
+            />
+            <select
+              value={divisionFilter}
+              onChange={(e) => setDivisionFilter(e.target.value)}
+              className="h-11 w-full rounded-lg border border-vanguard-gray-200 bg-white px-3 text-sm text-vanguard-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vanguard-blue"
+            >
+              <option value="all">All divisions</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'Active' | 'Draft' | 'Archived')}
+              className="h-11 w-full rounded-lg border border-vanguard-gray-200 bg-white px-3 text-sm text-vanguard-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vanguard-blue"
+            >
+              <option value="all">All statuses</option>
+              <option value="Active">Active</option>
+              <option value="Draft">Draft</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
           {bcLoading && <p className="text-sm text-vanguard-muted">Loading…</p>}
           <div className="overflow-x-auto border border-vanguard-gray-100 rounded-xl">
             <table className="w-full text-sm">
@@ -192,7 +234,11 @@ const AdminBootcampsManagePage = () => {
               </thead>
               <tbody>
                 {sortedBootcamps.map((b) => (
-                  <tr key={b.id} className="border-t border-vanguard-gray-100">
+                  <tr
+                    key={b.id}
+                    className="border-t border-vanguard-gray-100 hover:bg-vanguard-gray-50 cursor-pointer"
+                    onClick={() => navigate(adminRoutes.bootcamp(b.id))}
+                  >
                     <td className="p-3 font-bold text-vanguard-gray-800">{b.name}</td>
                     <td className="p-3 text-vanguard-muted">
                       {divisions.find((d) => d.id === b.divisionId)?.name ?? b.divisionId}
@@ -206,7 +252,10 @@ const AdminBootcampsManagePage = () => {
                       <button
                         type="button"
                         className="inline-flex p-2 rounded-lg hover:bg-vanguard-gray-100 text-vanguard-blue"
-                        onClick={() => openEditBootcamp(b.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditBootcamp(b.id);
+                        }}
                         title="Edit"
                       >
                         <Pencil size={16} />
@@ -214,7 +263,8 @@ const AdminBootcampsManagePage = () => {
                       <button
                         type="button"
                         className="inline-flex p-2 rounded-lg hover:bg-vanguard-gray-100 text-vanguard-gray-800"
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           setAssignBootcampId(b.id);
                           setAssignInstructorId(b.leadInstructorId ?? '');
                         }}
@@ -225,7 +275,8 @@ const AdminBootcampsManagePage = () => {
                       <button
                         type="button"
                         className="inline-flex p-2 rounded-lg hover:bg-amber-50 text-amber-800"
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           toastConfirm(
                             `Deactivate “${b.name}”?`,
                             'It will disappear from active lists.',

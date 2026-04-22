@@ -222,7 +222,7 @@ const router = express.Router();
 
 
 router.post('/login', login)
-router.post('/refresh', protect, refreshToken)
+router.post('/refresh', refreshToken)
 router.post('/password-reset-request', resetRequest)
 router.post('/password-reset-confirm', resetConfirm)
 router.post('/change-password', protect, changePassword)

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDivisionStore } from '@/src/store/useDivisionStore';
 import { useBootcampStore } from '@/src/store/useBootcampStore';
@@ -7,7 +7,7 @@ import { Badge } from '@/src/components/ui/Badge';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { DataTable } from '@/src/components/shared/DataTable';
-import { Plus, Filter, Layout, BookOpen, Clock, Eye, MoreVertical, TrendingUp, Star } from 'lucide-react';
+import { Plus, Layout, Eye, MoreVertical, TrendingUp, Star } from 'lucide-react';
 import PageShell from '@/src/components/layout/PageShell';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminRoutes } from '@/src/constants/routes';
@@ -19,7 +19,17 @@ const BootcampRegistry = () => {
   const { getBootcampsByDivision, bootcamps: allBootcamps, fetchBootcamps, isLoading } = useBootcampStore();
 
   const currentDivision = divisionId ? getDivisionById(divisionId) : null;
-  const filteredBootcamps = divisionId ? getBootcampsByDivision(divisionId) : allBootcamps;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Draft' | 'Archived'>('all');
+
+  const divisionBootcamps = divisionId ? getBootcampsByDivision(divisionId) : allBootcamps;
+  const filteredBootcamps = useMemo(() => {
+    return divisionBootcamps.filter((bootcamp) => {
+      const matchesSearch = bootcamp.name.toLowerCase().includes(searchTerm.trim().toLowerCase());
+      const matchesStatus = statusFilter === 'all' || bootcamp.lifecycle === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [divisionBootcamps, searchTerm, statusFilter]);
 
   useEffect(() => {
     void fetchBootcamps();
@@ -123,9 +133,23 @@ const BootcampRegistry = () => {
              >
                 <Plus size={16} className="mr-2" /> Add bootcamp
              </Link>
-             <Button variant="outline" className="rounded-lg h-10 px-4 flex items-center bg-vanguard-blue-light border-none text-vanguard-blue">
-                <Filter size={16} className="mr-2" /> Filter
-             </Button>
+             <input
+               type="text"
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               placeholder="Search bootcamp"
+               className="h-10 rounded-lg border border-vanguard-gray-200 px-3 text-sm text-vanguard-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vanguard-blue"
+             />
+             <select
+               value={statusFilter}
+               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'Active' | 'Draft' | 'Archived')}
+               className="h-10 rounded-lg border border-vanguard-gray-200 px-3 text-sm text-vanguard-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vanguard-blue"
+             >
+               <option value="all">All statuses</option>
+               <option value="Active">Active</option>
+               <option value="Draft">Draft</option>
+               <option value="Archived">Archived</option>
+             </select>
           </div>
         </div>
 

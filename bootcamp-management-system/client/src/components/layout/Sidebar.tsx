@@ -5,7 +5,6 @@ import {
   LayoutDashboard, 
   Layers, 
   Users, 
-  UserCheck, 
   Settings, 
   ChevronLeft,
   ChevronRight,
@@ -37,20 +36,12 @@ const Sidebar = () => {
       icon: Users, 
       path: activeDivision ? adminRoutes.divisionMembers(activeDivision.id) : adminRoutes.members 
     },
-    { 
-      name: 'Mentors', 
-      icon: UserCheck, 
-      path: activeDivision ? adminRoutes.divisionMentors(activeDivision.id) : adminRoutes.mentors 
-    },
     ...(user?.role === 'ADMIN'
       ? [{
           name: 'Settings',
           icon: Settings,
           path: activeDivision ? adminRoutes.divisionSettings(activeDivision.id) : adminRoutes.settings,
         }]
-      : []),
-    ...(user?.role === 'ADMIN' && activeDivision
-      ? [{ name: 'Admin Settings', icon: Settings, path: adminRoutes.settings }]
       : []),
   ];
 
@@ -63,19 +54,17 @@ const Sidebar = () => {
     >
       {/* Logo */}
       <div className="h-[64px] px-6 flex items-center gap-3 border-b border-vanguard-gray-200">
-        <div className="w-8 h-8 rounded-lg bg-vanguard-blue flex items-center justify-center text-white font-bold shrink-0">
-          V
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary shrink-0">
+          <span className="material-symbols-outlined">school</span>
         </div>
         {!sidebarCollapsed && (
           <div className="flex flex-col truncate">
-            <span className="text-sm font-black text-vanguard-gray-800 tracking-tight leading-none mb-1">
-              {activeDivision ? activeDivision.name : 'Vanguard BMS'}
+            <span className="text-xl font-black text-on-surface tracking-tighter font-headline uppercase leading-none">
+              CSEC ASTU
             </span>
-            {activeDivision && (
-              <span className="text-[10px] font-bold text-vanguard-blue uppercase tracking-widest leading-none">
-                Active Pillar
-              </span>
-            )}
+            <span className="text-xs text-on-surface-variant font-medium">
+              Bootcamp Portal
+            </span>
           </div>
         )}
       </div>
@@ -99,7 +88,6 @@ const Sidebar = () => {
             (item.name === 'Bootcamps' && activeDivision && location.pathname.startsWith(adminRoutes.divisionBootcamps(activeDivision.id))) ||
             isBootcampsAdmin ||
             isBootcampsRegistry ||
-            (item.name === 'Admin Settings' && location.pathname === adminRoutes.settings) ||
             (item.path !== adminRoutes.home &&
               item.path !== adminRoutes.manageDivisions &&
               item.path !== adminRoutes.manageBootcamps &&

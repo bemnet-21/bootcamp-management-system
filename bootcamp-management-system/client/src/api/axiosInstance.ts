@@ -45,8 +45,12 @@ axiosInstance.interceptors.response.use(
 
     if (status === 401 && !isAuthRequest) {
       localStorage.removeItem('vanguard_token');
+      localStorage.removeItem('vanguard-auth-storage');
       const isAdminArea = window.location.pathname.startsWith('/admin');
-      window.location.href = isAdminArea ? '/admin/login' : '/login';
+      const loginPath = isAdminArea ? '/admin/login' : '/login';
+      if (window.location.pathname !== loginPath) {
+        window.location.replace(loginPath);
+      }
     }
     return Promise.reject(error);
   }

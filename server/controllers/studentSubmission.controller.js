@@ -6,7 +6,7 @@ const updateSubmissionSchema = z.object({
     submissionId: z.string().min(1, "Submission ID is required")
 })
 export const updateSubmission = async (req, res) => {
-    const studentId = req.user.id || req.user._id;
+    const studentId = req.user.id
 
     const parseResult = updateSubmissionSchema.safeParse({ 
         submissionId: req.params.submissionId,
@@ -66,4 +66,22 @@ export const updateSubmission = async (req, res) => {
     } catch(err) {
         return res.status(500).json({ error: "Internal Server Error", message: err.message });
     }
+}
+
+export const getPersonalSubmissions = async (req, res) => {
+    const studentId = req.user.id
+    try {
+        const submissions = await SubmissionModel.find({ student: studentId }).populate({
+            path: "task",
+            populate: { path: "bootcamp", select: "name" }
+        });
+
+        return res.status(200).json({
+            message: "Personal submissions retrieved successfully",
+            submissions
+        });
+    } catch (err) {
+        return res.status(500).json({ error: "Internal Server Error", message: err.message });
+    }
+
 }

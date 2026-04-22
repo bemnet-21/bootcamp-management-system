@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PageShell from '@/src/components/layout/PageShell';
 import { Button } from '@/src/components/ui/Button';
 import { Plus, Search, Filter, X, AlertTriangle } from 'lucide-react';
@@ -13,7 +13,17 @@ const MembersPage = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [deletingMember, setDeletingMember] = useState<Member | null>(null);
-  const { deleteMember } = useUserStore();
+  const { deleteMember, fetchMembers, isLoading, error } = useUserStore();
+
+  useEffect(() => {
+    fetchMembers().catch((e: any) => {
+      toast.error(e?.response?.data?.message || e?.message || 'Failed to load members.');
+    });
+  }, [fetchMembers]);
+
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
 
   const handleEdit = (member: Member) => {
     setEditingMember(member);
@@ -24,11 +34,15 @@ const MembersPage = () => {
     setDeletingMember(member);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deletingMember) {
-      deleteMember(deletingMember.id);
-      toast.success('Member removed from directory');
-      setDeletingMember(null);
+      try {
+        await deleteMember(deletingMember.id);
+        toast.success('Member removed from directory');
+        setDeletingMember(null);
+      } catch (e: any) {
+        toast.error(e?.response?.data?.message || e?.message || 'Failed to delete member.');
+      }
     }
   };
 
@@ -81,6 +95,10 @@ const MembersPage = () => {
             </Button>
           </div>
         </div>
+
+        {isLoading && (
+          <div className="mb-4 text-sm text-vanguard-muted">Loading members...</div>
+        )}
 
         <MemberTable 
           onEdit={handleEdit} 

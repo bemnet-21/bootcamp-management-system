@@ -28,6 +28,7 @@ import StudentAssignments from './features/student/pages/StudentAssignments';
 import StudentResources from './features/student/pages/StudentResources';
 import StudentAttendance from './features/student/pages/StudentAttendance';
 import StudentGrades from './features/student/pages/StudentGrades';
+import StudentFeedback from './features/student/pages/StudentFeedback';
 import InstructorLayout from './features/instructor/layout/InstructorLayout';
 import InstructorDashboard from './features/instructor/pages/InstructorDashboard';
 import StudentsPage from './features/instructor/pages/StudentsPage';
@@ -286,6 +287,7 @@ export default function App() {
           />
           <Route path="attendance" element={<PortalRouteElement studentElement={<StudentAttendance />} instructorElement={<AttendancePage />} />} />
           <Route path="grades" element={<PortalRouteElement studentElement={<StudentGrades />} instructorAllowed={false} />} />
+          <Route path="feedback" element={<PortalRouteElement studentElement={<StudentFeedback />} instructorAllowed={false} />} />
           <Route path="students" element={<PortalRouteElement studentAllowed={false} instructorElement={<StudentsPage />} />} />
           <Route
             path="students/create"

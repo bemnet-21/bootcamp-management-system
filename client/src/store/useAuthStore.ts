@@ -1,42 +1,49 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-// import { useUserStore } from './useUserStore';
 import axiosInstance from '../api/axiosInstance';
 import { ENDPOINTS } from '../api/endpoints';
 
-interface User {
+export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: 'ADMIN' | 'MENTOR' | 'STUDENT';
   division?: string;
-  divisions?: string[];
   avatar?: string;
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (user: User, token: string) => void;
+  login: (user: AuthUser, token: string) => void;
   logout: () => void;
   loginWithBackend: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
 }
-
-const DEFAULT_ADMIN = {
-  id: '1',
-  name: 'Admin Portal',
-  email: 'admin@vanguard.edu',
-  role: 'ADMIN' as const,
-  avatar: 'https://picsum.photos/seed/admin/200',
-  password: 'vanguard-admin',
-};
 
 const roleMap = {
   Admin: 'ADMIN',
   Instructor: 'MENTOR',
   Student: 'STUDENT',
 } as const;
+
+function mapApiUserToAuthUser(raw: any): AuthUser {
+  const id = String(raw?.id ?? raw?._id ?? '');
+  const name =
+    [raw?.firstName, raw?.lastName].filter(Boolean).join(' ').trim() ||
+    raw?.username ||
+    raw?.email ||
+    'User';
+  const backendRole = raw?.role as keyof typeof roleMap | string | undefined;
+  const role = (backendRole && roleMap[backendRole as keyof typeof roleMap]) || 'STUDENT';
+  return {
+    id,
+    name,
+    email: raw?.email || '',
+    role,
+    avatar: `https://picsum.photos/seed/${encodeURIComponent(raw?.username || raw?.email || 'user')}/200`,
+  };
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -57,12 +64,12 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await axiosInstance.post(ENDPOINTS.AUTH.LOGIN, { username, password });
           const { user: userData, accessToken } = response.data;
-          const user = {
-            ...userData,
-            name: `${userData.firstName} ${userData.lastName}`
-          };
+          if (!accessToken) {
+            return { success: false, message: 'Login response did not include a valid token.' };
+          }
+          const mappedUser = mapApiUserToAuthUser(userData);
           localStorage.setItem('vanguard_token', accessToken);
-          set({ user, token: accessToken, isAuthenticated: true });
+          set({ user: mappedUser, token: accessToken, isAuthenticated: true });
           return { success: true };
         } catch (error: any) {
           let message = 'Login failed. Please try again.';
@@ -88,3 +95,5 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+export const isStaffRole = (role: AuthUser['role'] | undefined) => role === 'ADMIN' || role === 'MENTOR';

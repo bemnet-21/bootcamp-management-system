@@ -1,3 +1,4 @@
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDivisionStore } from '@/src/store/useDivisionStore';
 import { useBootcampStore } from '@/src/store/useBootcampStore';
 import { useUserStore } from '@/src/store/useUserStore';
@@ -6,33 +7,50 @@ import { Card } from '@/src/components/ui/Card';
 import { Button } from '@/src/components/ui/Button';
 import { Users, Layout, Star, ChevronRight, Video, Calendar, Mail, UserPlus, ShieldPlus } from 'lucide-react';
 import PageShell from '@/src/components/layout/PageShell';
-import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { cn } from '@/src/lib/utils';
+import { adminRoutes } from '@/src/constants/routes';
 
 const DivisionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getDivisionById, setActiveDivision } = useDivisionStore();
-  const { getBootcampsByDivision } = useBootcampStore();
-  const { getMembersByDivision } = useUserStore();
+  const { getDivisionById, setActiveDivision, fetchDivisions, ensureDivision } = useDivisionStore();
+  const { getBootcampsByDivision, fetchBootcamps } = useBootcampStore();
+  const { getMembersByDivision, fetchMembers } = useUserStore();
 
   const div = getDivisionById(id || '');
   const bootcamps = id ? getBootcampsByDivision(id) : [];
   const members = id ? getMembersByDivision(id) : [];
 
   useEffect(() => {
-    if (div) {
-      setActiveDivision(div);
-    }
-  }, [div, setActiveDivision]);
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await fetchDivisions();
+        let d = useDivisionStore.getState().getDivisionById(id);
+        if (!d) {
+          d = await ensureDivision(id);
+        }
+        if (cancelled) return;
+        if (d) setActiveDivision(d);
+        await fetchBootcamps();
+        await fetchMembers({ division: id, limit: 100 }).catch(() => {});
+      } catch {
+        /* handled in stores */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, fetchDivisions, ensureDivision, setActiveDivision, fetchBootcamps, fetchMembers]);
 
   if (!div) {
     return (
       <PageShell>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <h1 className="text-2xl font-bold mb-4">Division not found</h1>
-          <Button onClick={() => navigate('/')}>Back to Overview</Button>
+          <Button onClick={() => navigate(adminRoutes.home)}>Back to Overview</Button>
         </div>
       </PageShell>
     );
@@ -43,10 +61,11 @@ const DivisionDetail = () => {
     ds: 'text-[#003B7A]',
     dev: 'text-vanguard-blue',
     cyber: 'text-red-700',
-    cpd: 'text-vanguard-gray-800'
+    cpd: 'text-vanguard-gray-800',
+    generic: 'text-vanguard-blue',
   };
 
-  const accentColor = themeColors[div.id as keyof typeof themeColors] || 'text-vanguard-blue';
+  const accentColor = themeColors[div.visualKey] || 'text-vanguard-blue';
 
   return (
     <PageShell>
@@ -70,10 +89,10 @@ const DivisionDetail = () => {
           />
           <StatCard 
             label="Active Programs"
-            value={div.stats.activeBootcamps.toString()}
+            value={bootcamps.length.toString()}
             icon={<Layout size={24} />}
-            progress={{ current: div.stats.activeBootcamps, total: div.stats.activeBootcamps + 4, color: 'bg-vanguard-blue' }}
-            subtitle={`${div.stats.activeBootcamps} cohorts currently in session`}
+            progress={{ current: bootcamps.length, total: Math.max(bootcamps.length, 1), color: 'bg-vanguard-blue' }}
+            subtitle={`${bootcamps.length} cohort(s) in this division`}
           />
           <StatCard 
             label="Avg. Satisfaction"
@@ -92,10 +111,19 @@ const DivisionDetail = () => {
             </div>
             
             <Card noPadding>
+              {bootcamps.length === 0 && (
+                <div className="p-8 text-center text-sm text-vanguard-muted">
+                  No active bootcamps in this division yet.{' '}
+                  <Link className="text-vanguard-blue font-bold hover:underline" to={`${adminRoutes.manageBootcamps}?division=${div.id}`}>
+                    Create one under Bootcamps
+                  </Link>
+                  .
+                </div>
+              )}
               {bootcamps.map((item) => (
                 <div 
                   key={item.id} 
-                  onClick={() => navigate(`/bootcamps/${item.id}`)}
+                  onClick={() => navigate(adminRoutes.bootcamp(item.id))}
                   className="p-6 border-b border-vanguard-gray-100 last:border-none flex items-center justify-between group hover:bg-vanguard-gray-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center space-x-4">
@@ -105,7 +133,7 @@ const DivisionDetail = () => {
                     <div>
                       <h4 className="text-sm font-black text-vanguard-gray-800 uppercase tracking-tight">{item.name}</h4>
                       <p className="text-[10px] font-bold text-vanguard-gray-800 opacity-40 uppercase tracking-widest">
-                         Batch {item.batch} • {item.students} Students • {item.cohort}
+                         {item.lifecycle} • {item.students} students • {item.duration}
                       </p>
                     </div>
                   </div>
@@ -120,9 +148,12 @@ const DivisionDetail = () => {
               ))}
             </Card>
 
-            <Button className="w-full h-12 uppercase tracking-widest font-black" size="lg">
-              <ShieldPlus size={18} className="mr-2" /> Launch New {div.name} Program
-            </Button>
+            <Link
+              to={`${adminRoutes.manageBootcamps}?division=${div.id}`}
+              className="inline-flex w-full h-12 items-center justify-center rounded-lg bg-vanguard-blue text-white font-black uppercase tracking-widest hover:bg-vanguard-blue-dark shadow-sm text-[15px]"
+            >
+              <ShieldPlus size={18} className="mr-2" /> New bootcamp in {div.name}
+            </Link>
           </div>
 
           {/* Right Sidebar widgets */}

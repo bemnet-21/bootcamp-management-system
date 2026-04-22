@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useDivisionStore } from '@/src/store/useDivisionStore';
 import { useBootcampStore } from '@/src/store/useBootcampStore';
 import { StatCard } from '@/src/components/shared/StatCard';
@@ -8,16 +10,22 @@ import { DataTable } from '@/src/components/shared/DataTable';
 import { Plus, Filter, Layout, BookOpen, Clock, Eye, MoreVertical, TrendingUp, Star } from 'lucide-react';
 import PageShell from '@/src/components/layout/PageShell';
 import { useNavigate, useParams } from 'react-router-dom';
-import { cn } from '@/src/lib/utils';
+import { adminRoutes } from '@/src/constants/routes';
 
 const BootcampRegistry = () => {
   const { id: divisionId } = useParams();
   const navigate = useNavigate();
-  const { getDivisionById } = useDivisionStore();
-  const { getBootcampsByDivision, bootcamps: allBootcamps } = useBootcampStore();
+  const { getDivisionById, fetchDivisions, ensureDivision } = useDivisionStore();
+  const { getBootcampsByDivision, bootcamps: allBootcamps, fetchBootcamps, isLoading } = useBootcampStore();
 
   const currentDivision = divisionId ? getDivisionById(divisionId) : null;
   const filteredBootcamps = divisionId ? getBootcampsByDivision(divisionId) : allBootcamps;
+
+  useEffect(() => {
+    void fetchBootcamps();
+    void fetchDivisions();
+    if (divisionId) void ensureDivision(divisionId);
+  }, [divisionId, fetchBootcamps, fetchDivisions, ensureDivision]);
 
   const columns = [
     { 
@@ -40,7 +48,11 @@ const BootcampRegistry = () => {
     { 
       header: 'Status', 
       key: 'status',
-      render: (item: any) => <Badge variant={item.status}>{item.status}</Badge>
+      render: (item: any) => (
+        <div className="flex flex-col gap-1">
+          <Badge variant={item.status}>{item.lifecycle}</Badge>
+        </div>
+      )
     },
     { 
       header: 'Students', 
@@ -76,7 +88,7 @@ const BootcampRegistry = () => {
            <button 
              onClick={(e) => {
                e.stopPropagation();
-               navigate(`/bootcamps/${item.id}`);
+               navigate(adminRoutes.bootcamp(item.id));
              }}
              className="p-2 hover:bg-vanguard-gray-100 rounded-lg text-vanguard-gray-800 opacity-40 hover:opacity-100 transition-all"
            >
@@ -101,9 +113,16 @@ const BootcampRegistry = () => {
             <h1 className="text-4xl font-black text-vanguard-gray-800 tracking-tight tracking-tighter">Bootcamps</h1>
           </div>
           <div className="flex space-x-3">
-             <Button className="rounded-lg h-10 px-6 uppercase tracking-widest text-xs font-black">
-                <Plus size={16} className="mr-2" /> Add Program
-             </Button>
+             <Link
+               to={
+                 divisionId
+                   ? `${adminRoutes.manageBootcamps}?division=${divisionId}`
+                   : adminRoutes.manageBootcamps
+               }
+               className="inline-flex items-center rounded-lg h-10 px-6 uppercase tracking-widest text-xs font-black bg-vanguard-blue text-white hover:bg-vanguard-blue-dark shadow-sm"
+             >
+                <Plus size={16} className="mr-2" /> Add bootcamp
+             </Link>
              <Button variant="outline" className="rounded-lg h-10 px-4 flex items-center bg-vanguard-blue-light border-none text-vanguard-blue">
                 <Filter size={16} className="mr-2" /> Filter
              </Button>
@@ -140,10 +159,12 @@ const BootcampRegistry = () => {
            </div>
         </div>
 
+        {isLoading && <p className="text-sm text-vanguard-muted mb-4">Loading bootcamps…</p>}
+
         <DataTable 
           columns={columns} 
           data={filteredBootcamps} 
-          onRowClick={(item: any) => navigate(`/bootcamps/${item.id}`)}
+          onRowClick={(item: any) => navigate(adminRoutes.bootcamp(item.id))}
         />
       </div>
     </PageShell>

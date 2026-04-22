@@ -5,6 +5,7 @@ import { useUIStore } from '@/src/store/useUIStore';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
 import { useLocation } from 'react-router-dom';
+import { ADMIN_PATH } from '@/src/constants/routes';
 
 interface PageShellProps {
   children: ReactNode;
@@ -14,7 +15,7 @@ const PageShell = ({ children }: PageShellProps) => {
   const { sidebarCollapsed } = useUIStore();
   const location = useLocation();
 
-  const isOverview = location.pathname === '/';
+  const isOverview = location.pathname === ADMIN_PATH || location.pathname === `${ADMIN_PATH}/`;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">

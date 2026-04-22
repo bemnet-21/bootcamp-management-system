@@ -1,13 +1,16 @@
 import { create } from 'zustand';
+import axiosInstance from '@/src/api/axiosInstance';
+import { ENDPOINTS } from '@/src/api/endpoints';
 
 export interface Member {
   id: string;
   name: string;
   email: string;
   role: 'Admin' | 'Instructor' | 'Student';
-  divisionId: string;
+  divisionId: string; // UI-friendly label (division name if available)
+  divisionIds?: string[]; // raw backend division ObjectIds
   joinedDate: string;
-  status: 'Active' | 'Inactive' | 'Suspended';
+  status: 'Active' | 'Suspended' | 'Graduated';
   avatar: string;
   specialization?: string;
   rating?: number;
@@ -18,65 +21,153 @@ export interface Member {
 
 interface UserState {
   members: Member[];
-  addMember: (member: Omit<Member, 'id' | 'joinedDate' | 'avatar' | 'status'>) => Member;
-  updateMember: (id: string, member: Partial<Member>) => void;
-  deleteMember: (id: string) => void;
-  toggleStatus: (id: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  /** Pass `division` to filter server-side (ObjectId). Omit for all members. */
+  fetchMembers: (params?: { division?: string; role?: string; limit?: number }) => Promise<void>;
+  addMember: (member: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    role: Member['role'];
+    divisions: string[]; // backend division ObjectIds
+    status?: Member['status'];
+  }) => Promise<Member>;
+  updateMember: (
+    id: string,
+    updates: Partial<{
+      firstName: string;
+      lastName: string;
+      username: string;
+      email: string;
+      role: Member['role'];
+      divisions: string[];
+      status: Member['status'];
+      password: string;
+    }>
+  ) => Promise<void>;
+  deleteMember: (id: string) => Promise<void>;
+  toggleStatus: (id: string) => Promise<void>;
   getMembersByDivision: (divisionId: string) => Member[];
 }
 
+type BackendDivision = { _id: string; name?: string };
+type BackendUser = {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  role: Member['role'];
+  status: Member['status'];
+  divisions?: (string | BackendDivision)[];
+  createdAt?: string;
+};
+
+function formatJoinedDate(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function mapBackendUserToMember(u: BackendUser): Member {
+  const divisions = Array.isArray(u.divisions) ? u.divisions : [];
+  const divisionIds = divisions
+    .map((d) => (typeof d === 'string' ? d : d?._id))
+    .filter(Boolean) as string[];
+  const divisionNames = divisions
+    .map((d) => (typeof d === 'string' ? undefined : d?.name))
+    .filter(Boolean) as string[];
+  const name = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.username || u.email;
+  const divisionLabel =
+    divisionNames.length > 0 ? divisionNames.join(', ') : divisionIds.length > 0 ? divisionIds.join(', ') : '—';
+
+  return {
+    id: u._id,
+    name,
+    email: u.email,
+    role: u.role,
+    divisionId: divisionLabel,
+    divisionIds,
+    joinedDate: formatJoinedDate(u.createdAt),
+    status: u.status,
+    avatar: `https://picsum.photos/seed/${encodeURIComponent(u.username || u.email)}/200`,
+  };
+}
+
 export const useUserStore = create<UserState>((set, get) => ({
-  members: [
-    // Development
-    { id: 'dev-1', name: 'Sarah Jenkins', email: 'sarah.j@vanguard.edu', role: 'Instructor', divisionId: 'dev', joinedDate: 'Mar 12, 2024', status: 'Active', avatar: 'https://picsum.photos/seed/sarah/200', specialization: 'Senior DevOps Engineer', rating: 4.9, experience: 8 },
-    { id: 'dev-2', name: 'Marcus Jones', email: 'mjones@vanguard.edu', role: 'Student', divisionId: 'dev', joinedDate: 'Apr 01, 2024', status: 'Active', avatar: 'https://picsum.photos/seed/marcusj/200' },
-    { id: 'dev-3', name: 'Liam Chen', email: 'liam@vanguard.edu', role: 'Instructor', divisionId: 'dev', joinedDate: 'Jan 22, 2023', status: 'Active', avatar: 'https://picsum.photos/seed/liam/200', specialization: 'React Architecture Specialist', rating: 4.7, experience: 6 },
-    
-    // Data Science
-    { id: 'ds-1', name: 'Marcus Thorne', email: 'm.thorne@vanguard.edu', role: 'Admin', divisionId: 'ds', joinedDate: 'Jan 05, 2024', status: 'Active', avatar: 'https://picsum.photos/seed/marcus/200' },
-    { id: 'ds-2', name: 'Dr. Jane Smith', email: 'jsmith@vanguard.edu', role: 'Instructor', divisionId: 'ds', joinedDate: 'Feb 15, 2024', status: 'Active', avatar: 'https://picsum.photos/seed/jane/200', specialization: 'Neural Network Architect', rating: 5.0, experience: 12 },
-    { id: 'ds-3', name: 'Sophia Wu', email: 'sophia@vanguard.edu', role: 'Instructor', divisionId: 'ds', joinedDate: 'Jul 10, 2023', status: 'Active', avatar: 'https://picsum.photos/seed/sophia/200', specialization: 'NLP & LLM Expert', rating: 4.8, experience: 7 },
-    
-    // Cybersecurity
-    { id: 'cy-1', name: 'Elena Rodriguez', email: 'elena.r@vanguard.edu', role: 'Instructor', divisionId: 'cyber', joinedDate: 'Feb 20, 2024', status: 'Active', avatar: 'https://picsum.photos/seed/elena/200', specialization: 'Ethical Hacking Director', rating: 4.9, experience: 10 },
-    { id: 'cy-2', name: 'Kevin Mitnick', email: 'kevin@vanguard.edu', role: 'Admin', divisionId: 'cyber', joinedDate: 'Mar 10, 2023', status: 'Active', avatar: 'https://picsum.photos/seed/kevin/200' },
-    { id: 'cy-3', name: 'Alex Volkov', email: 'alex@vanguard.edu', role: 'Instructor', divisionId: 'cyber', joinedDate: 'Dec 05, 2023', status: 'Active', avatar: 'https://picsum.photos/seed/alex/200', specialization: 'Infrastructure Defensive Lead', rating: 4.6, experience: 5 },
-    
-    // CPD
-    { id: 'cpd-1', name: 'David Thorne', email: 'david@vanguard.edu', role: 'Admin', divisionId: 'cpd', joinedDate: 'Nov 12, 2023', status: 'Active', avatar: 'https://picsum.photos/seed/davidt/200' },
-    { id: 'cpd-2', name: 'Emma Wilson', email: 'emma@vanguard.edu', role: 'Student', divisionId: 'cpd', joinedDate: 'May 01, 2024', status: 'Active', avatar: 'https://picsum.photos/seed/emma/200' },
-    { id: 'cpd-3', name: 'Michael Grant', email: 'grant@vanguard.edu', role: 'Instructor', divisionId: 'cpd', joinedDate: 'Aug 14, 2023', status: 'Active', avatar: 'https://picsum.photos/seed/grant/200', specialization: 'Executive Leadership Coach', rating: 4.9, experience: 15 },
-  ],
-  addMember: (newMember) => {
-    const createdMember: Member = {
-      ...newMember,
-      id: Math.random().toString(36).slice(2, 11),
-      joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-      status: 'Active',
-      avatar: `https://picsum.photos/seed/${newMember.name}/200`,
-      mustResetPassword: true,
-    };
+  members: [],
+  isLoading: false,
+  error: null,
 
-    set((state) => ({
-      members: [createdMember, ...state.members],
-    }));
-
-    return createdMember;
+  fetchMembers: async (params) => {
+    set({ isLoading: true, error: null });
+    try {
+      const limit = params?.limit ?? 100;
+      const res = await axiosInstance.get(ENDPOINTS.USERS.BASE, {
+        params: {
+          limit,
+          ...(params?.division ? { division: params.division } : {}),
+          ...(params?.role ? { role: params.role } : {}),
+        },
+      });
+      const users: BackendUser[] = res.data?.data ?? [];
+      set({ members: users.map(mapBackendUserToMember), isLoading: false });
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to load members.';
+      set({ isLoading: false, error: message });
+      throw err;
+    }
   },
-  updateMember: (id, updatedFields) => set((state) => ({
-    members: state.members.map((m) => m.id === id ? { ...m, ...updatedFields } : m),
-  })),
-  deleteMember: (id) => set((state) => ({
-    members: state.members.filter((m) => m.id !== id),
-  })),
-  toggleStatus: (id) => set((state) => ({
-    members: state.members.map((m) => {
-      if (m.id === id) {
-        const nextStatus = m.status === 'Suspended' ? 'Active' : 'Suspended';
-        return { ...m, status: nextStatus };
-      }
-      return m;
-    }),
-  })),
-  getMembersByDivision: (divisionId) => get().members.filter(m => m.divisionId === divisionId),
+
+  addMember: async (payload) => {
+    set({ error: null });
+    const body = {
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      username: payload.username,
+      email: payload.email,
+      role: payload.role,
+      divisions: payload.divisions,
+      status: payload.status || 'Active',
+    };
+    const res = await axiosInstance.post(ENDPOINTS.USERS.BASE, body);
+    const created: BackendUser = res.data?.data;
+    const member = mapBackendUserToMember(created);
+    set((state) => ({ members: [member, ...state.members] }));
+    return member;
+  },
+
+  updateMember: async (id, updates) => {
+    set({ error: null });
+    const res = await axiosInstance.patch(ENDPOINTS.USERS.DETAIL(id), updates);
+    const updated: BackendUser = res.data?.data;
+    const member = mapBackendUserToMember(updated);
+    set((state) => ({
+      members: state.members.map((m) => (m.id === id ? { ...m, ...member } : m)),
+    }));
+  },
+
+  deleteMember: async (id) => {
+    set({ error: null });
+    await axiosInstance.delete(ENDPOINTS.USERS.DETAIL(id));
+    set((state) => ({ members: state.members.filter((m) => m.id !== id) }));
+  },
+
+  toggleStatus: async (id) => {
+    const current = get().members.find((m) => m.id === id);
+    if (!current) return;
+    const nextStatus: Member['status'] = current.status === 'Suspended' ? 'Active' : 'Suspended';
+    const res = await axiosInstance.patch(ENDPOINTS.USERS.STATUS(id), { status: nextStatus });
+    const updated: BackendUser = res.data?.data;
+    const member = mapBackendUserToMember(updated);
+    set((state) => ({
+      members: state.members.map((m) => (m.id === id ? { ...m, ...member } : m)),
+    }));
+  },
+
+  getMembersByDivision: (divisionId) =>
+    get().members.filter((m) => m.divisionIds?.includes(divisionId) || m.divisionId === divisionId),
 }));

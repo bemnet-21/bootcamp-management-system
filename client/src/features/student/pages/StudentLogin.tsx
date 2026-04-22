@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/src/store/useAuthStore';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore, isStaffRole } from '@/src/store/useAuthStore';
 import { Toaster, toast } from 'sonner';
 
 const StudentLogin = () => {
@@ -8,7 +8,7 @@ const StudentLogin = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { loginWithBackend } = useAuthStore();
+  const { loginWithBackend, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,6 +22,12 @@ const StudentLogin = () => {
     try {
       const result = await loginWithBackend(username, password);
       if (result.success) {
+        const role = useAuthStore.getState().user?.role;
+        if (isStaffRole(role)) {
+          logout();
+          toast.error('Staff accounts must use Admin login below.');
+          return;
+        }
         toast.success('Login Successful! Welcome to CSEC ASTU.');
         navigate('/portal/dashboard');
       } else {
@@ -133,6 +139,16 @@ const StudentLogin = () => {
             </div>
           </div>
         </div>
+
+        <p className="mt-6 text-center text-sm text-on-surface-variant font-body">
+          Administrator or instructor?{' '}
+          <Link
+            to="/admin/login"
+            className="font-semibold text-primary hover:text-primary/90 underline underline-offset-2 decoration-primary/40"
+          >
+            Admin login
+          </Link>
+        </p>
       </main>
 
       <footer className="mt-8 relative z-10">

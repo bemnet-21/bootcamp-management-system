@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+import { adminRoutes } from '@/src/constants/routes';
 
 const MemberProfile = () => {
   const { memberId } = useParams();
@@ -33,7 +34,7 @@ const MemberProfile = () => {
       <PageShell>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <h1 className="text-2xl font-bold mb-4">Member not found</h1>
-          <Button onClick={() => navigate('/members')}>Back to Directory</Button>
+          <Button onClick={() => navigate(adminRoutes.members)}>Back to Directory</Button>
         </div>
       </PageShell>
     );
@@ -45,7 +46,7 @@ const MemberProfile = () => {
     <PageShell>
       <div className="max-w-5xl mx-auto pb-20">
         <button 
-          onClick={() => navigate('/members')}
+          onClick={() => navigate(adminRoutes.members)}
           className="flex items-center text-[11px] font-bold uppercase tracking-widest text-vanguard-muted hover:text-vanguard-gray-800 mb-8 transition-colors"
         >
           <ArrowLeft size={14} className="mr-2" /> Back to Directory

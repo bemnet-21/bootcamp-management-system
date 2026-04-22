@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store/useAuthStore';
+import { useAuthStore, isStaffRole } from './store/useAuthStore';
 import Login from './features/auth/Login';
 import ForgotPassword from './features/auth/ForgotPassword';
 import ResetPassword from './features/auth/ResetPassword';
@@ -16,9 +16,9 @@ import BootcampWorkspace from './features/sessions/BootcampWorkspace';
 import MembersPage from './features/users/MembersPage';
 import MemberProfile from './features/users/pages/MemberProfile';
 import MentorsPage from './features/mentors/MentorsPage';
-import TeamsPage from './features/groups/TeamsPage';
 import SettingsPage from './features/settings/SettingsPage';
-import PageShell from './components/layout/PageShell';
+import AdminDivisionsPage from './features/admin/AdminDivisionsPage';
+import AdminBootcampsManagePage from './features/admin/AdminBootcampsManagePage';
 import StudentLayout from './features/student/layout/StudentLayout';
 import StudentDashboard from './features/student/pages/StudentDashboard';
 import StudentLogin from './features/student/pages/StudentLogin';
@@ -27,124 +27,166 @@ import StudentAssignments from './features/student/pages/StudentAssignments';
 import StudentResources from './features/student/pages/StudentResources';
 import StudentAttendance from './features/student/pages/StudentAttendance';
 import StudentGrades from './features/student/pages/StudentGrades';
+import { ADMIN_PATH, PORTAL_BASE, adminRoutes } from './constants/routes';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuthStore();
+const StaffProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuthStore();
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin/login" replace />;
+  }
+  if (!isStaffRole(user?.role)) {
+    return <Navigate to={`${PORTAL_BASE}/dashboard`} replace />;
   }
   return <>{children}</>;
 };
 
-const Placeholder = ({ title }: { title: string }) => (
-  <PageShell>
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <h1 className="text-4xl font-black text-vanguard-gray-800 tracking-tight mb-4">{title}</h1>
-      <p className="text-vanguard-gray-800 opacity-40 uppercase tracking-widest font-bold text-xs">Module Under Construction</p>
-    </div>
-  </PageShell>
-);
+const StudentProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (isStaffRole(user?.role)) {
+    return <Navigate to={ADMIN_PATH} replace />;
+  }
+  return <>{children}</>;
+};
+
+/** Staff login: already signed-in staff go to admin home; students use student portal */
+const AdminLoginGate = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (isAuthenticated && isStaffRole(user?.role)) {
+    return <Navigate to={ADMIN_PATH} replace />;
+  }
+  if (isAuthenticated && user?.role === 'STUDENT') {
+    return <Navigate to={`${PORTAL_BASE}/dashboard`} replace />;
+  }
+  return <>{children}</>;
+};
+
+/** Student login: students go to portal; staff go to admin */
+const StudentLoginGate = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (isAuthenticated && user?.role === 'STUDENT') {
+    return <Navigate to={`${PORTAL_BASE}/dashboard`} replace />;
+  }
+  if (isAuthenticated && isStaffRole(user?.role)) {
+    return <Navigate to={ADMIN_PATH} replace />;
+  }
+  return <>{children}</>;
+};
+
+const RootRedirect = () => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user?.role === 'STUDENT') {
+    return <Navigate to={`${PORTAL_BASE}/dashboard`} replace />;
+  }
+  return <Navigate to={ADMIN_PATH} replace />;
+};
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<StudentLogin />} />
-        <Route path="/admin/login" element={<Login />} />
+        <Route path="/" element={<RootRedirect />} />
+
+        <Route path="/login" element={<StudentLoginGate><StudentLogin /></StudentLoginGate>} />
+        <Route path="/admin/login" element={<AdminLoginGate><Login /></AdminLoginGate>} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected Routes */}
-        <Route path="/" element={
-          <ProtectedRoute>
+        <Route path={ADMIN_PATH} element={
+          <StaffProtectedRoute>
             <DivisionOverview />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/divisions/:id" element={
-          <ProtectedRoute>
+        <Route path={adminRoutes.manageDivisions} element={
+          <StaffProtectedRoute>
+            <AdminDivisionsPage />
+          </StaffProtectedRoute>
+        } />
+
+        <Route path={adminRoutes.manageBootcamps} element={
+          <StaffProtectedRoute>
+            <AdminBootcampsManagePage />
+          </StaffProtectedRoute>
+        } />
+
+        <Route path={`${ADMIN_PATH}/structure`} element={<Navigate to={adminRoutes.manageDivisions} replace />} />
+
+        <Route path={`${ADMIN_PATH}/divisions/:id`} element={
+          <StaffProtectedRoute>
             <DivisionDetail />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/divisions/:id/members" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/divisions/:id/members`} element={
+          <StaffProtectedRoute>
             <MembersPage />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/divisions/:id/bootcamps" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/divisions/:id/bootcamps`} element={
+          <StaffProtectedRoute>
             <BootcampRegistry />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/divisions/:id/teams" element={
-          <ProtectedRoute>
-            <TeamsPage />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/divisions/:id/mentors" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/divisions/:id/mentors`} element={
+          <StaffProtectedRoute>
             <MentorsPage />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/divisions/:id/settings" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/divisions/:id/settings`} element={
+          <StaffProtectedRoute>
             <SettingsPage />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/bootcamps" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/bootcamps`} element={
+          <StaffProtectedRoute>
             <BootcampRegistry />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/bootcamps/:id" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/bootcamps/:id`} element={
+          <StaffProtectedRoute>
             <BootcampWorkspace />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/members" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/members`} element={
+          <StaffProtectedRoute>
             <MembersPage />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/members/:memberId" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/members/:memberId`} element={
+          <StaffProtectedRoute>
             <MemberProfile />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/teams" element={
-          <ProtectedRoute>
-            <TeamsPage />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/mentors" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/mentors`} element={
+          <StaffProtectedRoute>
             <MentorsPage />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        <Route path="/settings" element={
-          <ProtectedRoute>
+        <Route path={`${ADMIN_PATH}/settings`} element={
+          <StaffProtectedRoute>
             <SettingsPage />
-          </ProtectedRoute>
+          </StaffProtectedRoute>
         } />
 
-        {/* Student Portal Routes */}
-        <Route path="/portal" element={
-          <ProtectedRoute>
+        <Route path={PORTAL_BASE} element={
+          <StudentProtectedRoute>
             <StudentLayout />
-          </ProtectedRoute>
+          </StudentProtectedRoute>
         }>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<StudentDashboard />} />
@@ -155,7 +197,6 @@ export default function App() {
           <Route path="grades" element={<StudentGrades />} />
         </Route>
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

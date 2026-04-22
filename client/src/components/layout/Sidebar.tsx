@@ -9,10 +9,12 @@ import {
   Settings, 
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Folders,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { ADMIN_PATH, adminRoutes } from '@/src/constants/routes';
 
 const Sidebar = () => {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
@@ -20,34 +22,30 @@ const Sidebar = () => {
   const location = useLocation();
   const { logout, user } = useAuthStore();
 
-  const dashboardPath = activeDivision ? `/divisions/${activeDivision.id}` : '/';
+  const dashboardPath = activeDivision ? adminRoutes.division(activeDivision.id) : adminRoutes.home;
 
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: dashboardPath },
+    { name: 'Divisions', icon: Folders, path: adminRoutes.manageDivisions },
     { 
       name: 'Bootcamps', 
       icon: Layers, 
-      path: activeDivision ? `/divisions/${activeDivision.id}/bootcamps` : '/bootcamps' 
+      path: activeDivision ? adminRoutes.divisionBootcamps(activeDivision.id) : adminRoutes.manageBootcamps 
     },
     { 
       name: 'Members', 
       icon: Users, 
-      path: activeDivision ? `/divisions/${activeDivision.id}/members` : '/members' 
-    },
-    { 
-      name: 'Teams', 
-      icon: Users, 
-      path: activeDivision ? `/divisions/${activeDivision.id}/teams` : '/teams' 
+      path: activeDivision ? adminRoutes.divisionMembers(activeDivision.id) : adminRoutes.members 
     },
     { 
       name: 'Mentors', 
       icon: UserCheck, 
-      path: activeDivision ? `/divisions/${activeDivision.id}/mentors` : '/mentors' 
+      path: activeDivision ? adminRoutes.divisionMentors(activeDivision.id) : adminRoutes.mentors 
     },
     { 
       name: 'Settings', 
       icon: Settings, 
-      path: activeDivision ? `/divisions/${activeDivision.id}/settings` : '/settings' 
+      path: activeDivision ? adminRoutes.divisionSettings(activeDivision.id) : adminRoutes.settings 
     },
   ];
 
@@ -80,9 +78,26 @@ const Sidebar = () => {
       {/* Nav Items */}
       <nav className="flex-1 px-3 space-y-1 mt-6">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
-                          (item.name === 'Dashboard' && location.pathname.startsWith('/divisions/')) ||
-                          (item.path !== '/' && location.pathname.startsWith(item.path));
+          const isDivisionsAdmin = item.name === 'Divisions' && location.pathname.startsWith(adminRoutes.manageDivisions);
+          const isBootcampsAdmin =
+            item.name === 'Bootcamps' &&
+            !activeDivision &&
+            (location.pathname === adminRoutes.manageBootcamps || location.pathname.startsWith(`${adminRoutes.manageBootcamps}/`));
+          const isBootcampsRegistry =
+            item.name === 'Bootcamps' &&
+            !activeDivision &&
+            (location.pathname === adminRoutes.bootcamps || location.pathname.startsWith(`${adminRoutes.bootcamps}/`));
+          const isActive =
+            location.pathname === item.path ||
+            (item.name === 'Dashboard' && location.pathname.startsWith(`${ADMIN_PATH}/divisions/`)) ||
+            isDivisionsAdmin ||
+            (item.name === 'Bootcamps' && activeDivision && location.pathname.startsWith(adminRoutes.divisionBootcamps(activeDivision.id))) ||
+            isBootcampsAdmin ||
+            isBootcampsRegistry ||
+            (item.path !== adminRoutes.home &&
+              item.path !== adminRoutes.manageDivisions &&
+              item.path !== adminRoutes.manageBootcamps &&
+              location.pathname.startsWith(item.path));
           return (
             <Link
               key={item.name}
@@ -134,7 +149,7 @@ const Sidebar = () => {
           {sidebarCollapsed ? <ChevronRight size={16} /> : <div className="flex items-center text-xs font-bold uppercase gap-2"><ChevronLeft size={16} /> Collapse</div>}
         </button>
         <button
-          onClick={() => { logout(); window.location.href = '/login'; }}
+          onClick={() => { logout(); window.location.href = '/admin/login'; }}
           className="w-full flex items-center justify-center p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-bold mt-2 transition-colors"
         >
           <LogOut size={16} className="mr-2" /> Logout

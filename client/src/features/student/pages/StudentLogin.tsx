@@ -8,8 +8,31 @@ const StudentLogin = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { loginWithBackend } = useAuthStore();
+  const { loginWithBackend, login } = useAuthStore();
   const navigate = useNavigate();
+
+  const handleDemoLogin = (demoRole: 'LEAD_INSTRUCTOR' | 'HELPER_INSTRUCTOR') => {
+    const demoPermissions =
+      demoRole === 'HELPER_INSTRUCTOR'
+        ? ['upload_resource']
+        : ['create_session', 'mark_attendance', 'add_student', 'upload_resource'];
+
+    login(
+      {
+        id: demoRole === 'HELPER_INSTRUCTOR' ? 'demo-helper' : 'demo-lead',
+        name: demoRole === 'HELPER_INSTRUCTOR' ? 'Demo Helper Instructor' : 'Demo Lead Instructor',
+        email: demoRole === 'HELPER_INSTRUCTOR' ? 'helper@demo.local' : 'lead@demo.local',
+        role: demoRole,
+        divisions: [],
+        permissions: demoPermissions,
+        avatar: `https://picsum.photos/seed/${demoRole === 'HELPER_INSTRUCTOR' ? 'helper' : 'lead'}/200`,
+      } as any,
+      'demo.demo.demo'
+    );
+
+    toast.success(`Signed in as ${demoRole === 'HELPER_INSTRUCTOR' ? 'Helper' : 'Lead'} Instructor (demo)`);
+    navigate('/portal/dashboard');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,6 +145,32 @@ const StudentLogin = () => {
                   {loading ? 'Authenticating...' : 'Login'}
                 </button>
               </div>
+
+              {(import.meta as any).env?.DEV ? (
+                <div className="pt-6 border-t border-outline-variant/20">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">
+                    Demo Access (Dev Only)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleDemoLogin('LEAD_INSTRUCTOR')}
+                      className="bg-blue-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-blue-700 transition disabled:opacity-50"
+                      disabled={loading}
+                    >
+                      Demo Lead Instructor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDemoLogin('HELPER_INSTRUCTOR')}
+                      className="bg-blue-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-blue-700 transition disabled:opacity-50"
+                      disabled={loading}
+                    >
+                      Demo Helper Instructor
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </form>
 
             {/* Footer Access Note */}

@@ -26,8 +26,4 @@ export const ENDPOINTS = {
     ATTENDANCE: (bootcampId: string) => `/student/bootcamps/${bootcampId}/attendance`,
     ATTENDANCE_STATS: (bootcampId: string) => `/student/bootcamps/${bootcampId}/attendance/stat`,
   },
-  SESSIONS: {
-    BASE: '/sessions',
-    DETAIL: (id: string) => `/sessions/${id}`,
-  }
 } as const;

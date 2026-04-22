@@ -66,6 +66,10 @@
   --font-label: "Inter", sans-serif;
 }
 
+.fill-1, .filled-icon {
+  font-variation-settings: 'FILL' 1 !important;
+}
+
 @layer base {
   body {
     @apply bg-[#F8FAFC] text-vanguard-gray-800 antialiased font-sans;

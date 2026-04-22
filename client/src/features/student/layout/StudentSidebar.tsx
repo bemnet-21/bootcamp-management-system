@@ -13,7 +13,7 @@ const StudentSidebar = () => {
     { name: 'Assignments', icon: 'task', path: '/portal/assignments' },
     { name: 'Attendance', icon: 'how_to_reg', path: '/portal/attendance' },
     { name: 'Grades', icon: 'grade', path: '/portal/grades' },
-    { name: 'Feedback', icon: 'forum', path: '/portal/feedback' },
+    { name: 'Feedback', icon: 'rate_review', path: '/portal/feedback' },
   ];
 
   return (

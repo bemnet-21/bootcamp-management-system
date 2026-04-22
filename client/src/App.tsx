@@ -27,6 +27,7 @@ import StudentAssignments from './features/student/pages/StudentAssignments';
 import StudentResources from './features/student/pages/StudentResources';
 import StudentAttendance from './features/student/pages/StudentAttendance';
 import StudentGrades from './features/student/pages/StudentGrades';
+import StudentFeedback from './features/student/pages/StudentFeedback';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
@@ -153,6 +154,7 @@ export default function App() {
           <Route path="resources" element={<StudentResources />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="grades" element={<StudentGrades />} />
+          <Route path="feedback" element={<StudentFeedback />} />
         </Route>
 
         {/* Fallback */}

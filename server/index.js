@@ -3,16 +3,19 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { swaggerUi, swaggerSpecs } from "./swagger.js";
 
-import authRoutes from "./routes/auth.routes.js";
-import connectDB from "./db/db.js";
-import userRoutes from "./routes/user.routes.js";
-import resourceRoutes from "./routes/resource.routes.js";
-import divisionRoutes from "./routes/division.routes.js";
-import sessionRoutes from "./routes/session.routes.js";
-import attendanceRoutes from "./routes/attendance.routes.js";
+import authRoutes from './routes/auth.routes.js'
+import connectDB from './db/db.js'
+import userRoutes from './routes/user.routes.js'
+import resourceRoutes from './routes/resource.routes.js'
+import divisionRoutes from './routes/division.routes.js'
+import sessionRoutes from './routes/session.routes.js'
+import attendanceRoutes from './routes/attendance.routes.js'
+import adminBootcampRoutes from './routes/adminBootcamp.routes.js'
+import taskRoutes from './routes/task.routes.js'
+import studentTaskRoutes from './routes/studentTask.routes.js'
+import studentSubmissionRoutes from './routes/studentSubmission.routes.js'
 import instructorRoutes from "./routes/instructor.routes.js";
-import adminBootcampRoutes from "./routes/adminBootcamp.routes.js";
-import taskRoutes from "./routes/task.routes.js";
+
 
 dotenv.config();
 
@@ -24,17 +27,19 @@ app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
-app.use("/auth", authRoutes);
-app.use("/admin/users", userRoutes);
+app.use('/auth', authRoutes)
+app.use('/admin/users', userRoutes)
 app.use("/bootcamps/sessions", sessionRoutes);
-app.use("/resources", resourceRoutes);
+app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
+app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
 app.use("/admin/divisions", divisionRoutes);
+app.use('/admin/bootcamps', adminBootcampRoutes)
+app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
+app.use('/student/tasks', studentTaskRoutes)
+app.use('/student/submissions', studentSubmissionRoutes)
 app.use("/instructor/bootcamps", instructorRoutes);
-app.use("/admin/bootcamps", adminBootcampRoutes);
-app.use("/bootcamps/:bootcampId/:sessionId/resources", resourceRoutes);
-app.use("/bootcamps/:bootcampId/resources", resourceRoutes);
-app.use("/bootcamps/:bootcampId/tasks", taskRoutes);
-app.use("/", attendanceRoutes);
+app.use('/', attendanceRoutes)
+
 
 
 app.use((err, req, res, next) => {

@@ -8,7 +8,7 @@ const taskSchema = new Schema({
     deadline: { type: Date, required: true },
     submissionType: { 
         type: String, 
-        enum: ["File", "GitHub", "Other"], 
+        enum: ["File", "GitHub", "Both"], 
         required: true 
     },
     maxScore: { type: Number, default: 100 },

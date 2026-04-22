@@ -205,12 +205,9 @@ export const getSingleSession = async (req, res) => {
 export const updateSession = async (req, res) => {
   try {
     const { id } = req.params;
-
-    //  validate input
+    // Validate input
     const validatedData = UpdateSessionSchema.parse(req.body);
-
     const session = await SessionModel.findById(id);
-
     if (!session) {
       return res.status(404).json({
         error: "Not Found",
@@ -218,89 +215,58 @@ export const updateSession = async (req, res) => {
       });
     }
 
-    // merge
+    // Merge existing and new data
     const merged = {
       title: validatedData.title ?? session.title,
       description: validatedData.description ?? session.description,
       instructor: validatedData.instructor ?? session.instructor,
       division: validatedData.division ?? session.division,
       bootcamp: validatedData.bootcamp ?? session.bootcamp,
-    // 4. apply updates
-    if (validatedData.title !== undefined) session.title = validatedData.title;
-    if (validatedData.description !== undefined)
-      session.description = validatedData.description;
-    if (validatedData.instructor !== undefined)
-      session.instructor = validatedData.instructor;
-    if (validatedData.division !== undefined)
-      session.division = validatedData.division;
-    if (validatedData.bootcamp !== undefined)
-      session.bootcamp = validatedData.bootcamp;
-    if (validatedData.location !== undefined)
-      session.location = validatedData.location;
-    if (validatedData.status !== undefined)
-      session.status = validatedData.status;
-
-    // 5. time logic
-    let start = session.startTime;
-    let end = session.endTime;
-
-    if (validatedData.startTime) start = new Date(validatedData.startTime);
-    if (validatedData.endTime) end = new Date(validatedData.endTime);
-
-    if (validatedData.startTime || validatedData.endTime) {
-      if (end <= start) {
-        return res.status(400).json({
-          error: "Validation Error",
-          message: "End time must be after start time.",
-        });
-      }
-
-      startTime: validatedData.startTime
-        ? new Date(validatedData.startTime)
-        : session.startTime,
-
-      endTime: validatedData.endTime
-        ? new Date(validatedData.endTime)
-        : session.endTime,
-
+      startTime: validatedData.startTime ? new Date(validatedData.startTime) : session.startTime,
+      endTime: validatedData.endTime ? new Date(validatedData.endTime) : session.endTime,
       type: validatedData.type ?? session.type,
-
-      location:
-        validatedData.location !== undefined
-          ? validatedData.location
-          : session.location,
-
-      link:
-        validatedData.link !== undefined ? validatedData.link : session.link,
-
+      location: validatedData.location !== undefined ? validatedData.location : session.location,
+      link: validatedData.link !== undefined ? validatedData.link : session.link,
       status: validatedData.status ?? session.status,
     };
 
+    // Type-specific logic
     if (merged.type === "online") {
       merged.location = undefined;
+      if (!merged.link) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: "Link is required for online session.",
+        });
+      }
     }
-
     if (merged.type === "onPlace") {
       merged.link = undefined;
+      if (!merged.location) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: "Location is required for on-site session.",
+        });
+      }
     }
+
+    // Validate with correct schema name
     CreateSeassionSchema.parse({
       ...merged,
       startTime: merged.startTime.toISOString(),
       endTime: merged.endTime.toISOString(),
     });
 
-    //  time logic checks
+    // Time logic checks
     const start = merged.startTime;
     const end = merged.endTime;
     const now = new Date();
-
     if (end <= start) {
       return res.status(400).json({
         error: "Validation Error",
         message: "End time must be after start time.",
       });
     }
-
     const duration = (end - start) / (1000 * 60);
     if (duration < 30) {
       return res.status(400).json({
@@ -308,7 +274,6 @@ export const updateSession = async (req, res) => {
         message: "Session must be at least 30 minutes.",
       });
     }
-
     if (start < now) {
       return res.status(400).json({
         error: "Invalid Time",
@@ -316,7 +281,7 @@ export const updateSession = async (req, res) => {
       });
     }
 
-    //  location conflict
+    // Location conflict
     if (merged.type === "onPlace") {
       const locationConflict = await SessionModel.findOne({
         _id: { $ne: id },
@@ -324,7 +289,6 @@ export const updateSession = async (req, res) => {
         startTime: { $lt: end },
         endTime: { $gt: start },
       });
-
       if (locationConflict) {
         return res.status(409).json({
           error: "Schedule Conflict",
@@ -333,27 +297,23 @@ export const updateSession = async (req, res) => {
       }
     }
 
-    // instructor conflict
+    // Instructor conflict
     const instructorConflict = await SessionModel.findOne({
       _id: { $ne: id },
       instructor: merged.instructor,
       startTime: { $lt: end },
       endTime: { $gt: start },
     });
-
     if (instructorConflict) {
       return res.status(409).json({
         error: "Schedule Conflict",
-        message:
-          "Instructor is already assigned to another session at this time.",
+        message: "Instructor is already assigned to another session at this time.",
       });
     }
 
-    // final update
+    // Final update
     Object.assign(session, merged);
-
     await session.save();
-
     return res.status(200).json({
       message: "Session updated successfully",
       session,
@@ -365,7 +325,6 @@ export const updateSession = async (req, res) => {
         message: "Invalid input data.",
       });
     }
-
     return res.status(500).json({
       error: "Server Error",
       message: "Something went wrong while updating session.",

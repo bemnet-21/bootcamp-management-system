@@ -10,6 +10,7 @@ interface User {
   email: string;
   role: 'ADMIN' | 'MENTOR' | 'STUDENT';
   division?: string;
+  divisions?: string[];
   avatar?: string;
 }
 

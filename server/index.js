@@ -16,6 +16,8 @@ import studentTaskRoutes from './routes/studentTask.routes.js'
 import studentSubmissionRoutes from './routes/studentSubmission.routes.js'
 import instructorRoutes from "./routes/instructor.routes.js";
 import groupsRoute from "./routes/groups.routes.js";
+import protect from "./middlewares/auth.js";
+import BootcampModel from "./models/Bootcamp.model.js";
 
 dotenv.config();
 
@@ -41,6 +43,25 @@ app.use("/instructor/bootcamps", instructorRoutes);
 app.use("/bootcamps/groups" , groupsRoute);
 app.use('/', attendanceRoutes)
 
+app.use('/bootcamps/:bootcampId/permissions', protect,async (req, res, next) => {
+      const { bootcampId } = req.params;
+      const userId = req.user.id;
+
+      try {
+        const bootcamp = await BootcampModel.findById(bootcampId);
+        const isLeadInstructor = bootcamp.leadInstructor.toString() === userId;
+        
+        res.json({
+          isLeadInstructor
+        })
+      } catch(err) {
+        console.error(err);
+        return res.status(500).json({
+            error: "Internal Server Error",
+            message: err.message,
+        });
+      }
+})
 
 
 app.use((err, req, res, next) => {

@@ -225,6 +225,35 @@ export const updateSession = async (req, res) => {
       instructor: validatedData.instructor ?? session.instructor,
       division: validatedData.division ?? session.division,
       bootcamp: validatedData.bootcamp ?? session.bootcamp,
+    // 4. apply updates
+    if (validatedData.title !== undefined) session.title = validatedData.title;
+    if (validatedData.description !== undefined)
+      session.description = validatedData.description;
+    if (validatedData.instructor !== undefined)
+      session.instructor = validatedData.instructor;
+    if (validatedData.division !== undefined)
+      session.division = validatedData.division;
+    if (validatedData.bootcamp !== undefined)
+      session.bootcamp = validatedData.bootcamp;
+    if (validatedData.location !== undefined)
+      session.location = validatedData.location;
+    if (validatedData.status !== undefined)
+      session.status = validatedData.status;
+
+    // 5. time logic
+    let start = session.startTime;
+    let end = session.endTime;
+
+    if (validatedData.startTime) start = new Date(validatedData.startTime);
+    if (validatedData.endTime) end = new Date(validatedData.endTime);
+
+    if (validatedData.startTime || validatedData.endTime) {
+      if (end <= start) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: "End time must be after start time.",
+        });
+      }
 
       startTime: validatedData.startTime
         ? new Date(validatedData.startTime)

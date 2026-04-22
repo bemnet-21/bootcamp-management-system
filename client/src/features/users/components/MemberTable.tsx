@@ -5,6 +5,7 @@ import { Member, useUserStore } from '@/src/store/useUserStore';
 import { MoreVertical, Edit2, Trash2, Ban, User } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
+import { toast } from 'sonner';
 
 interface MemberTableProps {
   onEdit: (member: Member) => void;
@@ -128,7 +129,16 @@ const MemberTable = ({ onEdit, onDelete, searchQuery = '' }: MemberTableProps) =
                   <User size={16} className="mr-3 text-vanguard-muted" /> View Profile
                 </button>
                 <button 
-                  onClick={() => { toggleStatus(item.id); setActiveMenu(null); }}
+                  onClick={async () => {
+                    try {
+                      await toggleStatus(item.id);
+                      toast.success(`Member ${item.status === 'Suspended' ? 'activated' : 'suspended'}.`);
+                    } catch (e: any) {
+                      toast.error(e?.response?.data?.message || e?.message || 'Failed to update status.');
+                    } finally {
+                      setActiveMenu(null);
+                    }
+                  }}
                   className="w-full flex items-center px-4 py-2.5 text-sm text-vanguard-gray-800 hover:bg-vanguard-gray-50 transition-colors"
                 >
                   <Ban size={16} className="mr-3 text-vanguard-muted" /> {item.status === 'Suspended' ? 'Activate' : 'Suspend'}

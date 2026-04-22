@@ -19,6 +19,14 @@ import MentorsPage from './features/mentors/MentorsPage';
 import TeamsPage from './features/groups/TeamsPage';
 import SettingsPage from './features/settings/SettingsPage';
 import PageShell from './components/layout/PageShell';
+import StudentLayout from './features/student/layout/StudentLayout';
+import StudentDashboard from './features/student/pages/StudentDashboard';
+import StudentLogin from './features/student/pages/StudentLogin';
+import StudentSessions from './features/student/pages/StudentSessions';
+import StudentAssignments from './features/student/pages/StudentAssignments';
+import StudentResources from './features/student/pages/StudentResources';
+import StudentAttendance from './features/student/pages/StudentAttendance';
+import StudentGrades from './features/student/pages/StudentGrades';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
@@ -42,7 +50,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<StudentLogin />} />
+        <Route path="/admin/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -52,7 +61,7 @@ export default function App() {
             <DivisionOverview />
           </ProtectedRoute>
         } />
-        
+
         <Route path="/divisions/:id" element={
           <ProtectedRoute>
             <DivisionDetail />
@@ -130,6 +139,21 @@ export default function App() {
             <SettingsPage />
           </ProtectedRoute>
         } />
+
+        {/* Student Portal Routes */}
+        <Route path="/portal" element={
+          <ProtectedRoute>
+            <StudentLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<StudentDashboard />} />
+          <Route path="sessions" element={<StudentSessions />} />
+          <Route path="assignments" element={<StudentAssignments />} />
+          <Route path="resources" element={<StudentResources />} />
+          <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="grades" element={<StudentGrades />} />
+        </Route>
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

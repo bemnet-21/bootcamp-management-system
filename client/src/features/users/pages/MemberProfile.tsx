@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageShell from '@/src/components/layout/PageShell';
 import { useUserStore } from '@/src/store/useUserStore';
@@ -24,8 +24,12 @@ import { adminRoutes } from '@/src/constants/routes';
 const MemberProfile = () => {
   const { memberId } = useParams();
   const navigate = useNavigate();
-  const { members } = useUserStore();
+  const { members, fetchMembers } = useUserStore();
   const [activeTab, setActiveTab] = useState('Overview');
+
+  useEffect(() => {
+    if (members.length === 0) fetchMembers().catch(() => {});
+  }, [members.length, fetchMembers]);
 
   const member = members.find(m => m.id === memberId);
 

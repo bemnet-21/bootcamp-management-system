@@ -1,4 +1,3 @@
-
 import mongoose, { Schema } from "mongoose";
 
 const groupSchema = new Schema(
@@ -13,8 +12,12 @@ const groupSchema = new Schema(
       ref: "Bootcamp",
       required: true,
     },
+    description: {
+      type: String,
+      default: "",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 groupSchema.index({ name: 1, bootcamp: 1 }, { unique: true });

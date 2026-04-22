@@ -6,12 +6,17 @@ import UserModel from "../models/User.model.js";
 import { error } from "node:console";
 const createGroupSchema = z.object({
   name: z.string().min(2, "group name is required").trim(),
+  description: z.string().optional(),
 });
 
 const addGroupMembersSchema = z.object({
   members: z.array(z.string()).min(1, "members are required"),
 });
 
+const updateGroupSchema = z.object({
+  name: z.string().min(2, "group name is required").trim().optional(),
+  description: z.string().optional(),
+})
 export const createGroup = async (req, res) => {
   try {
     const validatedData = createGroupSchema.parse(req.body);
@@ -23,6 +28,7 @@ export const createGroup = async (req, res) => {
     const group = await GroupModel.create({
       name: validatedData.name,
       bootcamp: bootcampId,
+      description: validatedData.description,
     });
 
     return res.status(201).json({
@@ -31,6 +37,8 @@ export const createGroup = async (req, res) => {
       message: "Group created successfully",
     });
   } catch (error) {
+    console.log(error);
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         error: "Validation Error",
@@ -344,6 +352,86 @@ export const getAllGroups = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: groups,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+};
+
+// get group detail with members
+
+export const getGroupDetails = async (req, res) => {
+  const { bootcampId, groupId } = req.params;
+
+  try {
+    // check group exist
+    const group = await GroupModel.findOne({
+      _id: groupId,
+      bootcamp: bootcampId,
+    });
+
+    if (!group) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "Group not found in this bootcamp",
+      });
+    }
+
+    // fetch members
+    const members = await GroupMemberModel.find({
+      group: groupId,
+      bootcamp: bootcampId,
+    }).populate("user", "name email role firstName");
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        group,
+        members,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+};
+
+export const updateGroup = async (req, res) => {
+  const { bootcampId, groupId } = req.params;
+
+  try {
+    // check group exist and update 
+
+    const validatedData = updateGroupSchema.parse(req.body);
+
+    const updatedGroup = await GroupModel.findOneAndUpdate(
+      {
+        _id: groupId,
+        bootcamp: bootcampId,
+      },
+      validatedData,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!updatedGroup) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "Group not found in this bootcamp",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: updatedGroup,
+      message: "Group updated successfully",
     });
   } catch (error) {
     return res.status(500).json({

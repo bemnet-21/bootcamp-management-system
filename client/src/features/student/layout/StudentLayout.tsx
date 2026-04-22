@@ -3,10 +3,12 @@ import { Outlet, NavLink } from 'react-router-dom';
 import StudentSidebar from './StudentSidebar';
 import StudentNavbar from './StudentNavbar';
 import { cn } from '@/src/lib/utils';
+import { Toaster } from 'sonner';
 
 const StudentLayout = () => {
   return (
     <div className="bg-surface text-on-surface min-h-screen">
+      <Toaster position="top-right" />
       {/* Sidebar for Desktop */}
       <StudentSidebar />
 

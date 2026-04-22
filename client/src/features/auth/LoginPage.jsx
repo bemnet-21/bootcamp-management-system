@@ -1,68 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/src/store/useAuthStore';
-import { Toaster, toast } from 'sonner';
 import { Eye, Info, Lock, Network, User } from 'lucide-react';
 
-const StudentLogin = () => {
+const LoginPage = () => {
   const [username, setUsername] = useState('yonas@g.com');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { loginWithBackend, login } = useAuthStore();
-  const navigate = useNavigate();
 
-  const handleDemoLogin = (demoRole: 'LEAD_INSTRUCTOR' | 'HELPER_INSTRUCTOR') => {
-    const demoPermissions =
-      demoRole === 'HELPER_INSTRUCTOR'
-        ? ['upload_resource']
-        : ['create_session', 'mark_attendance', 'add_student', 'upload_resource'];
-
-    login(
-      {
-        id: demoRole === 'HELPER_INSTRUCTOR' ? 'demo-helper' : 'demo-lead',
-        name: demoRole === 'HELPER_INSTRUCTOR' ? 'Demo Helper Instructor' : 'Demo Lead Instructor',
-        email: demoRole === 'HELPER_INSTRUCTOR' ? 'helper@demo.local' : 'lead@demo.local',
-        role: demoRole,
-        divisions: [],
-        permissions: demoPermissions,
-        avatar: `https://picsum.photos/seed/${demoRole === 'HELPER_INSTRUCTOR' ? 'helper' : 'lead'}/200`,
-      } as any,
-      'demo.demo.demo'
-    );
-
-    toast.success(`Signed in as ${demoRole === 'HELPER_INSTRUCTOR' ? 'Helper' : 'Lead'} Instructor (demo)`);
-    navigate('/portal/dashboard');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e) => {
     e.preventDefault();
-    if (!username || !password) {
-      toast.error('Please enter both username and password.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await loginWithBackend(username, password);
-      if (result.success) {
-        toast.success('Login Successful! Welcome to CSEC ASTU.');
-        navigate('/portal/dashboard');
-      } else {
-        toast.error(result.message || 'Invalid credentials. Please try again.');
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Something went wrong during login.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-100">
-      <Toaster position="top-center" />
-
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-4 py-10 md:px-6">
+    <div className="h-screen w-full bg-gray-100">
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center px-4 py-10 md:px-6">
         <div className="flex w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl md:flex-row">
           {/* Left Panel */}
           <div className="relative flex w-full items-center justify-center bg-gradient-to-br from-blue-700 to-blue-900 px-10 py-12 text-white md:w-1/2">
@@ -106,11 +56,9 @@ const StudentLogin = () => {
                 <p className="mt-2 text-gray-500">Login to continue to your bootcamp</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={onSubmit} className="space-y-6">
                 <div>
-                  <label className="text-xs font-semibold tracking-widest text-indigo-600" htmlFor="username">
-                    USERNAME
-                  </label>
+                  <label className="text-xs font-semibold tracking-widest text-indigo-600">USERNAME</label>
                   <div className="relative mt-2">
                     <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                     <input
@@ -118,21 +66,17 @@ const StudentLogin = () => {
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full rounded-lg bg-yellow-50 py-4 pl-12 pr-4 text-gray-900 placeholder:text-gray-400 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-indigo-600"
                       placeholder="yonas@g.com"
-                      type="text"
-                      id="username"
-                      required
+                      type="email"
                     />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold tracking-widest text-indigo-600" htmlFor="password">
-                      PASSWORD
-                    </label>
-                    <Link to="/forgot-password" className="text-sm font-semibold text-indigo-700 hover:text-indigo-800 hover:underline">
+                    <label className="text-xs font-semibold tracking-widest text-indigo-600">PASSWORD</label>
+                    <a href="#" className="text-sm font-semibold text-indigo-700 hover:text-indigo-800 hover:underline">
                       Forgot Password?
-                    </Link>
+                    </a>
                   </div>
                   <div className="relative mt-2">
                     <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -142,8 +86,6 @@ const StudentLogin = () => {
                       className="w-full rounded-lg bg-yellow-50 py-4 pl-12 pr-12 text-gray-900 placeholder:text-gray-400 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-indigo-600"
                       placeholder="••••••••••••"
                       type={showPassword ? 'text' : 'password'}
-                      id="password"
-                      required
                     />
                     <button
                       type="button"
@@ -158,35 +100,28 @@ const StudentLogin = () => {
 
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full rounded-xl bg-indigo-700 py-4 font-semibold text-white shadow-sm transition hover:bg-indigo-800 disabled:opacity-60"
+                  className="w-full rounded-xl bg-indigo-700 py-4 font-semibold text-white shadow-sm transition hover:bg-indigo-800"
                 >
-                  {loading ? 'Authenticating…' : 'Login'}
+                  Login
                 </button>
 
-                {(import.meta as any).env?.DEV ? (
-                  <div className="pt-2">
-                    <p className="text-xs font-semibold text-gray-400">DEMO ACCESS (DEV ONLY)</p>
-                    <div className="mt-3 flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleDemoLogin('LEAD_INSTRUCTOR')}
-                        className="flex-1 rounded-lg bg-blue-600 p-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                        disabled={loading}
-                      >
-                        Demo Lead Instructor
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDemoLogin('HELPER_INSTRUCTOR')}
-                        className="flex-1 rounded-lg bg-blue-500 p-3 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60"
-                        disabled={loading}
-                      >
-                        Demo Helper Instructor
-                      </button>
-                    </div>
+                <div className="pt-2">
+                  <p className="text-xs font-semibold text-gray-400">DEMO ACCESS (DEV ONLY)</p>
+                  <div className="mt-3 flex gap-3">
+                    <button
+                      type="button"
+                      className="flex-1 rounded-lg bg-blue-600 p-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      Demo Lead Instructor
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 rounded-lg bg-blue-500 p-3 text-sm font-semibold text-white transition hover:bg-blue-600"
+                    >
+                      Demo Helper Instructor
+                    </button>
                   </div>
-                ) : null}
+                </div>
 
                 <div className="flex items-start gap-3 rounded-lg bg-gray-100 p-3 text-gray-600">
                   <Info className="mt-0.5 h-5 w-5 text-gray-500" />
@@ -200,6 +135,7 @@ const StudentLogin = () => {
           </div>
         </div>
 
+        {/* Global Footer */}
         <div className="mt-8 flex flex-col items-center justify-center gap-2 text-center text-xs text-gray-500 md:flex-row md:justify-between">
           <div>• SECURE ADMIN PORTAL V4.2.0</div>
           <div className="flex items-center gap-3">
@@ -217,4 +153,5 @@ const StudentLogin = () => {
   );
 };
 
-export default StudentLogin;
+export default LoginPage;
+

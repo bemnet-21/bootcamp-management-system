@@ -17,12 +17,6 @@ const groupMemberSchema = new Schema(
       ref: "User",
       required: true,
     },
-    mentors: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],  
   },
   { timestamps: true },
 );

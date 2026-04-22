@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: (import.meta as any).env?.VITE_API_URL || '/api',
+  // Backend runs on :5000 in dev; allow override via VITE_API_URL.
+  baseURL:
+    (import.meta as any).env?.VITE_API_URL ||
+    ((import.meta as any).env?.DEV ? 'http://localhost:5000' : ''),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,8 +14,16 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('vanguard_token');
-    if (token) {
+    const looksLikeJwt =
+      typeof token === 'string' &&
+      token !== 'undefined' &&
+      token !== 'null' &&
+      token.split('.').length === 3;
+
+    if (looksLikeJwt) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (token) {
+      localStorage.removeItem('vanguard_token');
     }
     return config;
   },

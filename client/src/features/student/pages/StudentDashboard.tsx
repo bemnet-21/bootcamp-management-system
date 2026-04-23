@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { studentService, Session } from '@/src/api/studentService';
 import { toast } from 'sonner';
+import InstructorDashboard from '@/src/components/dashboard/instructor/InstructorDashboard';
+import { resolveInstructorRole } from '@/src/components/dashboard/instructor/PermissionWrapper';
 
-const StudentDashboard = () => {
+const StudentDashboardView = () => {
   const { user } = useAuthStore();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [attendancePercent, setAttendancePercent] = useState<string>('0%');
   const [loading, setLoading] = useState(true);
+  const firstName = useMemo(() => user?.name?.split(' ')[0] || 'Scholar', [user?.name]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -48,7 +51,7 @@ const StudentDashboard = () => {
           <span className="text-xs font-bold uppercase tracking-[0.2em] opacity-80 font-label">Academic Terminal</span>
           <h1 className="text-6xl font-black font-manrope tracking-tighter mt-4 leading-none">
             Welcome Back, <br />
-            <span className="text-secondary-container">{user?.firstName || 'Scholar'}</span>
+            <span className="text-secondary-container">{firstName}</span>
           </h1>
           <p className="mt-8 text-lg font-medium opacity-90 font-body leading-relaxed">
             You have <span className="underline decoration-secondary decoration-4 underline-offset-4">{sessions.length} sessions listed</span> for your current module. Your current academic velocity is looking exceptional.
@@ -163,6 +166,17 @@ const StudentDashboard = () => {
       </div>
     </div>
   );
+};
+
+const StudentDashboard = () => {
+  const { role, user } = useAuthStore();
+  const portalRole = resolveInstructorRole(role, user?.role);
+
+  if (portalRole === 'lead_instructor' || portalRole === 'helper_instructor') {
+    return <InstructorDashboard />;
+  }
+
+  return <StudentDashboardView />;
 };
 
 export default StudentDashboard;

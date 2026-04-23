@@ -89,6 +89,23 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Session deleted
+ *
+ * /bootcamps/sessions/{id}/cancel:
+ *   patch:
+ *     summary: Cancel a session by ID
+ *     tags: [Sessions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The session ID
+ *     responses:
+ *       200:
+ *         description: Session cancelled
+ *       404:
+ *         description: Session not found
  */
 
 // authenticated only

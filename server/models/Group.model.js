@@ -1,10 +1,25 @@
 import mongoose, { Schema } from "mongoose";
 
-const groupSchema = new Schema({
-    name: { type: String, required: true },
-    division: { type: Schema.Types.ObjectId, ref: 'Division', required: true },
-    members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    mentor: { type: Schema.Types.ObjectId, ref: 'User' }
-}, { timestamps: true });
+const groupSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    bootcamp: {
+      type: Schema.Types.ObjectId,
+      ref: "Bootcamp",
+      required: true,
+    },
+    description: {
+      type: String,
+      default: "",
+    },
+  },
+  { timestamps: true },
+);
 
-export default mongoose.model('Group', groupSchema);
+groupSchema.index({ name: 1, bootcamp: 1 }, { unique: true });
+
+export default mongoose.model("Group", groupSchema);

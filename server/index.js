@@ -16,6 +16,9 @@ import studentTaskRoutes from './routes/studentTask.routes.js'
 import studentSubmissionRoutes from './routes/studentSubmission.routes.js'
 import instructorRoutes from "./routes/instructor.routes.js";
 import groupsRoute from "./routes/groups.routes.js";
+import gradingRoutes from "./routes/grading.routes.js";
+
+
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
 
@@ -41,6 +44,7 @@ app.use('/student/tasks', studentTaskRoutes)
 app.use('/student/submissions', studentSubmissionRoutes)
 app.use("/instructor/bootcamps", instructorRoutes);
 app.use("/bootcamps/groups" , groupsRoute);
+app.use("/instructor/submissions/bootcamps/:bootcampId", gradingRoutes)
 app.use('/', attendanceRoutes)
 
 app.use('/bootcamps/:bootcampId/permissions', protect,async (req, res, next) => {

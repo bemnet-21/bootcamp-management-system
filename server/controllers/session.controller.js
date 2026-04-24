@@ -8,7 +8,6 @@ const base = z.object({
   description: z.string().optional(),
   instructor: z.string().min(1),
   division: z.string().min(1),
-  bootcamp: z.string().min(1),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   status: z.enum(["Scheduled", "Cancelled", "Completed"]).default("Scheduled"),
@@ -47,8 +46,10 @@ export const UpdateSessionSchema = z.object({
 
 export const createSession = async (req, res) => {
   try {
+    const {bootcampId} = req.params
     // 1. Validate input
     const validatedData = CreateSeassionSchema.parse(req.body);
+    validatedData.bootcamp = bootcampId;
 
     const startTime = new Date(validatedData.startTime);
     const endTime = new Date(validatedData.endTime);
@@ -175,7 +176,7 @@ export const getSeassions = async (req, res) => {
 
 export const getSingleSession = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.bootcampId;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -204,7 +205,7 @@ export const getSingleSession = async (req, res) => {
 
 export const updateSession = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.bootcampId;
     // Validate input
     const validatedData = UpdateSessionSchema.parse(req.body);
     const session = await SessionModel.findById(id);
@@ -334,7 +335,7 @@ export const updateSession = async (req, res) => {
 
 export const cancelSession = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.bootcampId;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -378,7 +379,7 @@ export const cancelSession = async (req, res) => {
 
 export const deleteSession = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.bootcampId;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({

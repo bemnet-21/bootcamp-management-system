@@ -16,16 +16,14 @@ import studentTaskRoutes from './routes/studentTask.routes.js'
 import studentSubmissionRoutes from './routes/studentSubmission.routes.js'
 import instructorRoutes from "./routes/instructor.routes.js";
 import groupsRoute from "./routes/groups.routes.js";
-<<<<<<< HEAD
 import progressRoutes from "./routes/progress.routes.js";
-=======
 import gradingRoutes from "./routes/grading.routes.js";
 import studentFeedbackRoutes from "./routes/studentFeedback.routes.js";
+import instructorFeedbackRoutes from "./routes/instructorFeedback.routes.js";
 
 
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
->>>>>>> 60dfb3c04de7c1028e18b0809efa516ba4ff9e59
 
 dotenv.config();
 
@@ -48,9 +46,10 @@ app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
 app.use('/student/tasks', studentTaskRoutes)
 app.use('/student/submissions', studentSubmissionRoutes)
 app.use("/instructor/bootcamps", instructorRoutes);
+app.use("/instructor/bootcamps/:bootcampId/submissions/", gradingRoutes)
+app.use('/instructor/bootcamps/:bootcampId/', instructorFeedbackRoutes)
 app.use("/bootcamps/groups" , groupsRoute);
 app.use("/groups/progress/", progressRoutes);
-app.use("/instructor/submissions/", gradingRoutes)
 app.use('/student/sessions', studentFeedbackRoutes)
 app.use('/', attendanceRoutes)
 

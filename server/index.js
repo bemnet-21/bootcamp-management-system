@@ -25,6 +25,7 @@ import notificationsRoutes from "./routes/notifications.routes.js";
 
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
+import analyticsRoutes from './routes/analytics.routes.js'
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use("/groups/progress/", progressRoutes);
 app.use('/student/sessions', studentFeedbackRoutes)
 app.use("/bootcamps/:bootcampId/students", rosterRoutes);
 app.use('/notifications', notificationsRoutes)
+app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
 app.use('/', attendanceRoutes)
 
 app.use('/bootcamps/:bootcampId/permissions', protect,async (req, res, next) => {

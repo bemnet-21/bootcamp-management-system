@@ -13,6 +13,7 @@ import {
   listDivisionsWithStats,
   updateDivision,
   deleteDivision,
+  getDivisionWithStats,
 } from "../services/division.service.js";
 
 // create a new division

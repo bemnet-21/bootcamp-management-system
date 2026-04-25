@@ -17,7 +17,15 @@ const userSchema = new Schema({
         enum: ["Active", "Suspended", "Graduated"], 
         default: "Active" 
     },
-    refreshToken: { type: String }
+    refreshToken: { type: String },
+    notificationPreferences: {
+        email: { type: Boolean, default: true },
+        inApp: { type: Boolean, default: true },
+        types: {
+            sessions: { type: Boolean, default: true },
+            grading: { type: Boolean, default: true }
+        }
+    }
 }, { timestamps: true });
 
 userSchema.index({ role: 1, divisions: 1 });

@@ -288,32 +288,32 @@ const router = express.Router();
  */
 
 
- // protect  for authenticated users only
+router.use(protect); //auth user only
 
-router.use(protect);
 
-// create group
+// Create group
 router.post("/:bootcampId", createGroup);
 
-// delete group
-router.delete("/:bootcampId/:groupId", deleteGroup);
-
-// list groups in the bootcamp
+// List groups in a bootcamp
 router.get("/:bootcampId", getAllGroups);
 
-// add bulk or single students
-router.post("/:bootcampId/:groupId/members", addGroupMembers);
-
-// remove single student
-router.delete("/:bootcampId/:groupId/members/:studentId", removeStudent);
-
-// view students group
-router.get("/:bootcampId/me", getMyGroup);
-
-// get group detail + member
+// Get single group (with members)
 router.get("/:bootcampId/:groupId", getGroupDetails);
 
-// update group detail (name , description)
-router.put("/:bootcampId/:groupId" , updateGroup);
+// Update group
+router.put("/:bootcampId/:groupId", updateGroup);
 
+// Delete group
+router.delete("/:bootcampId/:groupId", deleteGroup);
+
+
+// Add members bulk/single
+router.post("/:bootcampId/:groupId/members", addGroupMembers);
+
+// Remove single member
+router.delete("/:bootcampId/:groupId/members/:studentId", removeStudent);
+
+
+// Get my group
+router.get("/:bootcampId/me", getMyGroup);
 export default router;

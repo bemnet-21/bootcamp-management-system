@@ -8,6 +8,9 @@ import {
   cancelSession,
 } from "../controllers/session.controller.js";
 import protect from "../middlewares/auth.js";
+import { checkInstructor } from "../middlewares/checkInstructor.js";
+import { requirePermission } from "../middlewares/requirePermission.js";
+
 const router = express.Router();
 
 /**
@@ -26,14 +29,27 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: List of sessions
+ */
+ 
+/**
+ * @swagger
+ * /bootcamps/sessions/{bootcampId}:
  *   post:
  *     summary: Create a new session
  *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
  *     responses:
  *       201:
  *         description: Session created
  */
-
 /**
  * @swagger
  * /bootcamps/sessions/{id}:
@@ -91,12 +107,24 @@ const router = express.Router();
  *       404:
  *         description: Session not found
  */
+
+// authenticated only
 router.use(protect);
-router.post("/", createSession);
+
 router.get("/", getSeassions);
-router.get("/:id", getSingleSession);
-router.patch("/:id", updateSession);
-router.delete("/:id", deleteSession);
-router.patch("/:id/cancel", cancelSession);
+router.get("/:bootcampId", getSingleSession);
+
+// both instructor and helper(w permission)
+router.patch("/:bootcampId", requirePermission("sessions"), updateSession);
+router.patch(
+  "/:bootcampId/cancel",
+  requirePermission("sessions"),
+  cancelSession,
+);
+router.post("/:bootcampId", requirePermission("sessions"), createSession);
+
+router.delete("/:bootcampId", checkInstructor, deleteSession);
+
+// we need lead and heper so lead can and helper if he have the permission
 
 export default router;

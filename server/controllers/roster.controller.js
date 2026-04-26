@@ -1,0 +1,296 @@
+import EnrollmentModel from "../models/Enrollment.model.js";
+import z from "zod";
+
+const addStudentSchema = z.object({
+  student: z.string().min(1, "Student ID is required"),
+});
+
+const bulkSchema = z.object({
+  students: z.array(z.string().min(1)),
+});
+
+const updateStatusSchema = z.object({
+  status: z.enum(["active", "dropped", "completed"]),
+});
+
+export const addSingleStudent = async (req, res) => {
+  const bootcampId = req.params.bootcampId;
+
+  try {
+    const { student } = addStudentSchema.parse(req.body);
+
+    let enrollment = await EnrollmentModel.findOne({
+      bootcamp: bootcampId,
+      student,
+    });
+    console.log("enrollment not found", enrollment);
+    console.log(bootcampId, "bootcamp id ");
+
+    if (enrollment) {
+      if (enrollment.status === "active") {
+        return res.status(400).json({
+          success: false,
+          message: "Student already enrolled",
+        });
+      }
+
+      // reactivate
+      enrollment.status = "active";
+      enrollment.leftAt = null;
+      await enrollment.save();
+
+      return res.json({
+        success: true,
+        message: "Student re-enrolled",
+        data: enrollment,
+      });
+    }
+
+    enrollment = await EnrollmentModel.create({
+      bootcamp: bootcampId,
+      student,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Student added to roster",
+      data: enrollment,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const addStudentsInBulk = async (req, res) => {
+  const { bootcampId } = req.params;
+
+  try {
+    const { students } = bulkSchema.parse(req.body);
+
+    if (!students.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Students array cannot be empty",
+      });
+    }
+
+    const ops = students.map((studentId) => ({
+      updateOne: {
+        filter: {
+          bootcamp: bootcampId,
+          student: studentId,
+        },
+        update: {
+          $set: {
+            status: "active",
+            leftAt: null,
+          },
+          $setOnInsert: {
+            bootcamp: bootcampId,
+            student: studentId,
+            joinedAt: new Date(),
+          },
+        },
+        upsert: true, //create if missing
+      },
+    }));
+
+    const result = await EnrollmentModel.bulkWrite(ops, {
+      ordered: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Bulk enrollment completed",
+      data: {
+        matched: result.matchedCount,
+        modified: result.modifiedCount,
+        upserted: result.upsertedCount,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Bulk enrollment failed",
+    });
+  }
+};
+
+export const listAllStudents = async (req, res) => {
+  const { bootcampId } = req.params;
+
+  try {
+    const students = await EnrollmentModel.find({
+      bootcamp: bootcampId,
+      status: "active",
+    })
+      .populate("student", "firstName email")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      count: students.length,
+      data: students,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch students",
+    });
+  }
+};
+
+export const getSingleStudent = async (req, res) => {
+  const { bootcampId, studentId } = req.params;
+
+  try {
+    const enrollment = await EnrollmentModel.findOne({
+      bootcamp: bootcampId,
+      student: studentId,
+    })
+      .populate("student", "firstName email")
+      .lean();
+
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found in this bootcamp",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: enrollment,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch student",
+    });
+  }
+};
+
+export const permanentlyRemoveStudent = async (req, res) => {
+  const { bootcampId, studentId } = req.params;
+
+  try {
+    const deleted = await EnrollmentModel.findOneAndDelete({
+      bootcamp: bootcampId,
+      student: studentId,
+    });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Enrollment not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Enrollment permanently deleted",
+      data: deleted,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete enrollment",
+    });
+  }
+};
+
+export const updateStudentStatus = async (req, res) => {
+  const { bootcampId, studentId } = req.params;
+
+  try {
+    const { status } = updateStatusSchema.parse(req.body);
+
+    const enrollment = await EnrollmentModel.findOne({
+      bootcamp: bootcampId,
+      student: studentId,
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: "Enrollment not found",
+      });
+    }
+
+    // prevent useless updates
+    if (enrollment.status === status) {
+      return res.status(400).json({
+        success: false,
+        message: `Student already ${status}`,
+      });
+    }
+
+    enrollment.status = status;
+
+    if (status === "dropped") {
+      enrollment.leftAt = new Date();
+    }
+
+    if (status === "active") {
+      enrollment.leftAt = null;
+    }
+
+    if (status === "completed") {
+      enrollment.leftAt = new Date();
+    }
+
+    await enrollment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Student status updated",
+      data: enrollment,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.errors,
+      });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update student status",
+    });
+  }
+};
+
+export const getStudentAttendance = async (req, res) => {
+  const { bootcampId, studentId } = req.params;
+  try {
+  } catch (error) {}
+};
+
+export const getStudetSubmission = async (req, res) => {
+  const { bootcampId, studentId } = req.params;
+
+  try {
+  } catch (error) {}
+};

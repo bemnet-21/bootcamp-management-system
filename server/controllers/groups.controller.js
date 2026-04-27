@@ -4,6 +4,8 @@ import GroupModel from "../models/Group.model.js";
 import GroupMemberModel from "../models/groupMember.model.js";
 import UserModel from "../models/User.model.js";
 import { error } from "node:console";
+import BootcampModel from "../models/Bootcamp.model.js";
+import EnrollmentModel from "../models/Enrollment.model.js";
 const createGroupSchema = z.object({
   name: z.string().min(2, "group name is required").trim(),
   description: z.string().optional(),
@@ -16,8 +18,10 @@ const addGroupMembersSchema = z.object({
 const updateGroupSchema = z.object({
   name: z.string().min(2, "group name is required").trim().optional(),
   description: z.string().optional(),
-})
+});
 export const createGroup = async (req, res) => {
+  console.log("its inside create group");
+
   try {
     const validatedData = createGroupSchema.parse(req.body);
     const { bootcampId } = req.params;
@@ -53,107 +57,36 @@ export const createGroup = async (req, res) => {
   }
 };
 
-// export const createGroup = async (req, res) => {
-//   try {
-//     const validatedData = createGroupSchema.parse(req.body);
-//     const { bootcampId } = req.params;
-
-//     validatedData.bootcamp = bootcampId;
-
-//     // //  Validate students exist
-//     // if (validatedData.students?.length) {
-//     //   const users = await UserModel.find({
-//     //     _id: { $in: validatedData.students },
-//     //   });
-
-//     //   if (users.length !== validatedData.students.length) {
-//     //     return res.status(400).json({
-//     //       error: "Validation Error",
-//     //       message: "One or more student IDs are invalid",
-//     //     });
-//     //   }
-//     // }
-
-//     // //  Validate mentors exist
-//     // if (validatedData.mentors?.length) {
-//     //   const mentors = await UserModel.find({
-//     //     _id: { $in: validatedData.mentors },
-//     //   });
-
-//     //   if (mentors.length !== validatedData.mentors.length) {
-//     //     return res.status(400).json({
-//     //       error: "Validation Error",
-//     //       message: "One or more mentor IDs are invalid",
-//     //     });
-//     //   }
-//     // }
-
-//     // //  Prevent duplicates
-//     // if (validatedData.students?.length) {
-//     //   const existing = await GroupMemberModel.find({
-//     //     bootcamp: bootcampId,
-//     //     user: { $in: validatedData.students },
-//     //   });
-
-//     //   if (existing.length > 0) {
-//     //     return res.status(400).json({
-//     //       error: "Validation Error",
-//     //       message: "Some students already belong to a group in this bootcamp",
-//     //     });
-//     //   }
-//     // }
-
-//     //  Create Group
-//     const group = await GroupModel.create({
-//       name: validatedData.name,
-//       bootcamp: bootcampId,
-//     });
-
-//     // // Build membership rows
-//     // const members = [];
-
-//     // // students
-//     // if (validatedData.students?.length) {
-//     //   for (const studentId of validatedData.students) {
-//     //     members.push({
-//     //       group: group._id,
-//     //       bootcamp: bootcampId,
-//     //       user: studentId,
-//     //       mentors: [],
-//     //     });
-//     //   }
-//     // }
-
-//     // // mentors (attached as separate membership entries OR shared field)
-//     // if (validatedData.mentors?.length) {
-//     //   for (const mentorId of validatedData.mentors) {
-//     //     members.push({
-//     //       group: group._id,
-//     //       bootcamp: bootcampId,
-//     //       user: mentorId,
-//     //       mentors: [],
-//     //     });
-//     //   }
-//     // }
-
-//     // // 6. Bulk insert membership
-//     // if (members.length) {
-//     //   await GroupMemberModel.insertMany(members);
-//     // }
-
-//     return res.status(201).json({
-//       success: true,
-//       data: group,
-//       message: "Group created successfully",
-//     });
-//
-
 export const addGroupMembers = async (req, res) => {
   try {
     const { bootcampId, groupId } = req.params;
+    const userId = req.user.id;
 
     const validatedData = addGroupMembersSchema.parse(req.body);
 
+    // check bootcamp membership
+
+    const enrollments = await EnrollmentModel.find({
+      bootcamp: bootcampId,
+      student: { $in: validatedData.members },
+    });
+    const enrolledIds = enrollments.map((e) => e.student.toString());
+    const notEnrolled = validatedData.members.filter(
+      (id) => !enrolledIds.includes(id.toString()),
+    );
+    if (notEnrolled.length > 0) {
+      return res.status(403).json({
+        error: "enrolment",
+        message: "Some users are not part of the bootcamp",
+      });
+    }
+
+    if (!enrollments) {
+      return res.status(403).json({
+        error: "enrolment",
+        message: "you are not part of the bootcamp",
+      });
+    }
     // prevent duplicate
     const existing = await GroupMemberModel.find({
       bootcamp: bootcampId,
@@ -405,9 +338,29 @@ export const updateGroup = async (req, res) => {
   const { bootcampId, groupId } = req.params;
 
   try {
-    // check group exist and update 
+    // check group exist and update
 
     const validatedData = updateGroupSchema.parse(req.body);
+
+    if (validatedData.members) {
+      const enrollments = await EnrollmentModel.find({
+        bootcamp: bootcampId,
+        student: { $in: validatedData.members },
+      });
+
+      const enrolledIds = enrollments.map((e) => e.student.toString());
+
+      const notEnrolled = validatedData.members.filter(
+        (id) => !enrolledIds.includes(id.toString()),
+      );
+
+      if (notEnrolled.length > 0) {
+        return res.status(403).json({
+          error: "enrolment",
+          message: "Some users are not part of the bootcamp",
+        });
+      }
+    }
 
     const updatedGroup = await GroupModel.findOneAndUpdate(
       {

@@ -34,7 +34,7 @@ export const createBootcamp = async (req, res, next) => {
   try {
     const data = createBootcampSchema.parse(req.body);
 
-    // validation 
+    // validation
     const division = await Division.findById(data.division_id);
     if (!division) {
       return res.status(404).json({
@@ -118,7 +118,6 @@ export const getAllBootcamps = async (req, res, next) => {
   }
 };
 
-
 // get single bootcamp by id
 export const getBootcampById = async (req, res, next) => {
   try {
@@ -148,8 +147,6 @@ export const getBootcampById = async (req, res, next) => {
     next(err);
   }
 };
-
-
 
 // assign lead instructor for the bootcamp
 export const assignLeadInstructor = async (req, res, next) => {
@@ -295,8 +292,6 @@ export const deleteBootcamp = async (req, res, next) => {
     next(err);
   }
 };
-
-
 
 export const softDeleteBootcamp = async (req, res, next) => {
   try {

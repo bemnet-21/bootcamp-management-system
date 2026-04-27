@@ -6,8 +6,11 @@ import {
   getHelpersData,
   deleteHelper,
   getAllHelpers,
+  updateHelper,
 } from "../controllers/instructor.controller.js";
 import protect from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/requirePermission.js";
+import { checkLead } from "../middlewares/checkLead.js";
 
 /**
  * @swagger
@@ -15,7 +18,7 @@ import protect from "../middlewares/auth.js";
  *   name: Instructor
  *   description: Instructor-related endpoints
  */
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router.use(protect);
 /**
@@ -30,7 +33,6 @@ router.use(protect);
  *       200:
  *         description: List of bootcamps
  */
-router.get("/", getBootcamps);
 /**
  * @swagger
  * /instructor/bootcamps/{id}:
@@ -50,9 +52,6 @@ router.get("/", getBootcamps);
  *       200:
  *         description: Bootcamp details
  */
-router.get("/:id", getSingleBootcamp);
-
-// we have to add middleware to check if the instructor(user) is lead to the specific bootcamp so we will not perform both bootcamp existance check and lead instructor check inside a controller
 
 // add  and update helper
 /**
@@ -87,8 +86,6 @@ router.get("/:id", getSingleBootcamp);
  *       200:
  *         description: Helper added/updated
  */
-router.post("/:id/helpers", addHelper);
-
 // list all helpers in the bootcamp
 /**
  * @swagger
@@ -109,9 +106,8 @@ router.post("/:id/helpers", addHelper);
  *       200:
  *         description: List of helpers
  */
-router.get("/:bootcampId/helpers", getAllHelpers);
 
-// get single helper data with permissio 
+// get single helper data with permissio
 /**
  * @swagger
  * /instructor/bootcamps/{bootcampId}/helpers/{helperId}:
@@ -137,7 +133,6 @@ router.get("/:bootcampId/helpers", getAllHelpers);
  *       200:
  *         description: Helper details
  */
-router.get("/:bootcampId/helpers/:helperId", getHelpersData);
 
 // delete helpers of bootcamp
 /**
@@ -165,5 +160,14 @@ router.get("/:bootcampId/helpers/:helperId", getHelpersData);
  *       200:
  *         description: Helper deleted
  */
-router.delete("/:bootcampId/helpers/:helperId", deleteHelper);
+
+router.get("/", checkLead, getSingleBootcamp);
+router.get("/helpers", checkLead, getAllHelpers);
+router.post("/helpers", checkLead, addHelper);
+router.put("/helpers", checkLead, updateHelper);
+router.get("/helpers/:helperId", checkLead, getHelpersData);
+router.delete("/helpers/:helperId", checkLead, deleteHelper);
+
+
+
 export default router;

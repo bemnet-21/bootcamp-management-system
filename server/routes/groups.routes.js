@@ -10,8 +10,11 @@ import {
   updateGroup,
 } from "../controllers/groups.controller.js";
 import protect from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/requirePermission.js";
+import { checkLead } from "../middlewares/checkLead.js";
+import { checkStudent } from "../middlewares/checkStudents.js";
 
-const router = express.Router();
+const router = express.Router({mergeParams:true});
 
 /**
  * @swagger
@@ -216,7 +219,7 @@ const router = express.Router();
  *         description: Internal server error
  */
 
- /**
+/**
  * @swagger
  * /bootcamps/groups/{bootcampId}/{groupId}:
  *   get:
@@ -246,7 +249,7 @@ const router = express.Router();
  *         description: Internal server error
  */
 
- /**
+/**
  * @swagger
  * /bootcamps/groups/{bootcampId}/{groupId}:
  *   put:
@@ -287,33 +290,34 @@ const router = express.Router();
  *         description: Internal server error
  */
 
-
 router.use(protect); //auth user only
 
+// Get my group
+router.get("/me", checkStudent, getMyGroup);
 
 // Create group
-router.post("/:bootcampId", createGroup);
+router.post("/", requirePermission("groups"), createGroup);
 
 // List groups in a bootcamp
-router.get("/:bootcampId", getAllGroups);
+router.get("/", requirePermission("groups", true), getAllGroups);
 
 // Get single group (with members)
-router.get("/:bootcampId/:groupId", getGroupDetails);
+router.get("/:groupId", requirePermission("groups", true), getGroupDetails);
 
 // Update group
-router.put("/:bootcampId/:groupId", updateGroup);
+router.put("/:groupId", requirePermission("groups"), updateGroup);
 
 // Delete group
-router.delete("/:bootcampId/:groupId", deleteGroup);
-
+router.delete("/:groupId", checkLead, deleteGroup);
 
 // Add members bulk/single
-router.post("/:bootcampId/:groupId/members", addGroupMembers);
+router.post("/:groupId/members", requirePermission("groups"), addGroupMembers);
 
 // Remove single member
-router.delete("/:bootcampId/:groupId/members/:studentId", removeStudent);
+router.delete(
+  "/:groupId/members/:studentId",
+  requirePermission("groups"),
+  removeStudent,
+);
 
-
-// Get my group
-router.get("/:bootcampId/me", getMyGroup);
 export default router;

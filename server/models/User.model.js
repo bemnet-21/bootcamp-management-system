@@ -8,7 +8,7 @@ const userSchema = new Schema({
     password: { type: String, required: true, select: false },
     role: {
         type: String,
-        enum: ["Admin", "Instructor", "Student"],
+        enum: ["Admin", "Student"],
         required: true
     },
     divisions: [{ type: Schema.Types.ObjectId, ref: 'Division' }],
@@ -23,7 +23,11 @@ const userSchema = new Schema({
         inApp: { type: Boolean, default: true },
         types: {
             sessions: { type: Boolean, default: true },
-            grading: { type: Boolean, default: true }
+            grading: { type: Boolean, default: true },
+            bootcamp: { type: Boolean, default: true },
+            group: { type: Boolean, default: true },
+            task: { type: Boolean, default: true },
+
         }
     }
 }, { timestamps: true });

@@ -1,6 +1,7 @@
 import express from 'express';
 import { changePassword, login, logout, profile, refreshToken, resetConfirm, resetRequest, updateProfile } from '../controllers/auth.controller.js';
 import protect from '../middlewares/auth.js';
+import { updateUserNotificationPreference } from '../controllers/notifications.controller.js';
 
 const router = express.Router();
 
@@ -219,6 +220,48 @@ const router = express.Router();
  *         description: User not found
  */
 
+/**
+ * @swagger
+ * /auth/me/notification-preferences:
+ *   put:
+ *     summary: Update user notification preferences
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: boolean
+ *                 description: Receive notifications via email
+ *               inApp:
+ *                 type: boolean
+ *                 description: Receive in-app notifications
+ *               types:
+ *                 type: object
+ *                 properties:
+ *                   sessions:
+ *                     type: boolean
+ *                   grading:
+ *                     type: boolean
+ *                   bootcamp:
+ *                     type: boolean
+ *                   group:
+ *                     type: boolean
+ *                   task:
+ *                     type: boolean
+ *     responses:
+ *       200:
+ *         description: Notification preferences updated successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: User not found
+ */
 
 
 router.post('/login', login)
@@ -229,5 +272,8 @@ router.post('/change-password', protect, changePassword)
 router.get('/me', protect, profile)
 router.put('/me', protect, updateProfile)
 router.post('/logout', protect, logout)
+
+router.put('/me/notification-preferences', protect, updateUserNotificationPreference)
+
 
 export default router;

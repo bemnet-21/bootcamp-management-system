@@ -21,6 +21,7 @@ import gradingRoutes from "./routes/grading.routes.js";
 import studentFeedbackRoutes from "./routes/studentFeedback.routes.js";
 import instructorFeedbackRoutes from "./routes/instructorFeedback.routes.js";
 import rosterRoutes from "./routes/roster.routes.js";
+import notificationsRoutes from "./routes/notifications.routes.js";
 
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
@@ -53,6 +54,7 @@ app.use("/bootcamps/groups" , groupsRoute);
 app.use("/groups/progress/", progressRoutes);
 app.use('/student/sessions', studentFeedbackRoutes)
 app.use("/bootcamps/:bootcampId/students", rosterRoutes);
+app.use('/notifications', notificationsRoutes)
 app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
 app.use('/', attendanceRoutes)
 

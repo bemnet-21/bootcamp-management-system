@@ -104,7 +104,7 @@ export const createBootcamp = async (req, res, next) => {
 // get all bootcamps
 export const getAllBootcamps = async (req, res, next) => {
   try {
-    const bootcamps = await Bootcamp.find({ isActive: true })
+    const bootcamps = await Bootcamp.find()
       .populate("leadInstructor", "firstName lastName email")
       .populate("division_id", "name")
       .populate("students", "firstName lastName email");

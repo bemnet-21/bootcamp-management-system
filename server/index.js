@@ -26,6 +26,8 @@ import reportsRoutes from "./routes/reports.routes.js";
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
 import analyticsRoutes from './routes/analytics.routes.js'
+import publicUserRoutes from "./routes/publicUser.routes.js";
+
 
 dotenv.config();
 
@@ -43,6 +45,7 @@ app.use('/admin/users', userRoutes)
 app.use('/admin/bootcamps', adminBootcampRoutes)
 app.use("/admin/divisions", divisionRoutes);
 app.use("/admin/reports", reportsRoutes);
+app.use("/users", publicUserRoutes);
 
 app.use("/bootcamps/:bootcampId/instructor", instructorRoutes);
 app.use("/bootcamps/:bootcampId/groups", groupsRoute);

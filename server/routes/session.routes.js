@@ -23,17 +23,10 @@ const router = express.Router({ mergeParams: true });
 
 /**
  * @swagger
- * /bootcamps/{bootcampId}/sessions:
+ * /bootcamps/sessions:
  *   get:
- *     summary: List all sessions for a specific bootcamp
+ *     summary: List all sessions
  *     tags: [Sessions]
- *     parameters:
- *       - in: path
- *         name: bootcampId
- *         required: true
- *         schema:
- *           type: string
- *         description: Bootcamp ID to filter sessions
  *     responses:
  *       200:
  *         description: List of sessions
@@ -41,7 +34,7 @@ const router = express.Router({ mergeParams: true });
 
 /**
  * @swagger
- * /bootcamps/{bootcampId}/sessions:
+ * /bootcamps/sessions/{bootcampId}:
  *   post:
  *     summary: Create a new session
  *     tags: [Sessions]
@@ -54,89 +47,19 @@ const router = express.Router({ mergeParams: true });
  *         schema:
  *           type: string
  *         description: Bootcamp ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             oneOf:
- *               - type: object
- *                 required:
- *                   - title
- *                   - instructor
- *                   - division
- *                   - startTime
- *                   - endTime
- *                   - type
- *                   - link
- *                 properties:
- *                   title:
- *                     type: string
- *                   description:
- *                     type: string
- *                   instructor:
- *                     type: string
- *                   division:
- *                     type: string
- *                   startTime:
- *                     type: string
- *                     format: date-time
- *                   endTime:
- *                     type: string
- *                     format: date-time
- *                   type:
- *                     type: string
- *                     enum: [online]
- *                   link:
- *                     type: string
- *               - type: object
- *                 required:
- *                   - title
- *                   - instructor
- *                   - division
- *                   - startTime
- *                   - endTime
- *                   - type
- *                   - location
- *                 properties:
- *                   title:
- *                     type: string
- *                   description:
- *                     type: string
- *                   instructor:
- *                     type: string
- *                   division:
- *                     type: string
- *                   startTime:
- *                     type: string
- *                     format: date-time
- *                   endTime:
- *                     type: string
- *                     format: date-time
- *                   type:
- *                     type: string
- *                     enum: [onPlace]
- *                   location:
- *                     type: string
  *     responses:
  *       201:
  *         description: Session created
  */
 /**
  * @swagger
- * /bootcamps/{bootcampId}/sessions/{sessionId}:
+ * /bootcamps/sessions/{id}:
  *   get:
  *     summary: Get session by ID
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: bootcampId
- *         required: true
- *         schema:
- *           type: string
- *         description: Bootcamp ID
- *       - in: path
- *         name: sessionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -148,7 +71,7 @@ const router = express.Router({ mergeParams: true });
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: sessionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -160,7 +83,7 @@ const router = express.Router({ mergeParams: true });
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: sessionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -168,18 +91,13 @@ const router = express.Router({ mergeParams: true });
  *       200:
  *         description: Session deleted
  *
- * /bootcamps/{bootcampId}/sessions/{sessionId}/cancel:
+ * /bootcamps/sessions/{id}/cancel:
  *   patch:
  *     summary: Cancel a session by ID
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: bootcampId
- *         required: true
- *         schema:
- *           type: string
- *       - in: path
- *         name: sessionId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string

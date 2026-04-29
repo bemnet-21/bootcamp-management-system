@@ -22,7 +22,7 @@ import studentFeedbackRoutes from "./routes/studentFeedback.routes.js";
 import instructorFeedbackRoutes from "./routes/instructorFeedback.routes.js";
 import rosterRoutes from "./routes/roster.routes.js";
 import notificationsRoutes from "./routes/notifications.routes.js";
-
+import reportsRoutes from "./routes/reports.routes.js";
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
 import analyticsRoutes from './routes/analytics.routes.js'
@@ -34,11 +34,15 @@ const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
-
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
+app.use('/auth', authRoutes)
+
+
+app.use('/admin/users', userRoutes)
 app.use('/admin/bootcamps', adminBootcampRoutes)
 app.use("/admin/divisions", divisionRoutes);
-
+app.use("/admin/reports", reportsRoutes);
 
 app.use("/bootcamps/:bootcampId/instructor", instructorRoutes);
 app.use("/bootcamps/:bootcampId/groups", groupsRoute);
@@ -46,20 +50,19 @@ app.use("/bootcamps/:bootcampId/sessions", sessionRoutes);
 app.use("/bootcamps/:bootcampId/students", rosterRoutes);
 app.use("/bootcamps/:bootcampId/progress/", progressRoutes);
 app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
-
-app.use('/auth', authRoutes)
-app.use('/admin/users', userRoutes)
 app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
+app.use("/bootcamps/:bootcampId/students", rosterRoutes);
+app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
+
+
 app.use('/student/tasks', studentTaskRoutes)
 app.use('/student/submissions', studentSubmissionRoutes)
 app.use("/instructor/bootcamps/:bootcampId/submissions/", gradingRoutes)
 app.use('/instructor/bootcamps/:bootcampId/', instructorFeedbackRoutes)
 app.use('/student/sessions', studentFeedbackRoutes)
-app.use("/bootcamps/:bootcampId/students", rosterRoutes);
 app.use('/notifications', notificationsRoutes)
-app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
 app.use('/', attendanceRoutes)
 
 app.use('/bootcamps/:bootcampId/permissions', protect,async (req, res, next) => {

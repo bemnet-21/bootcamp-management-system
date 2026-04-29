@@ -30,22 +30,31 @@ export async function listDivisionsWithStats() {
   return Division.aggregate([
     { $sort: { name: 1 } },
 
-    // students
+    // students (via enrollment → bootcamp → division)
     {
       $lookup: {
-        from: "users",
+        from: "enrollments",
         let: { divisionId: "$_id" },
         pipeline: [
           {
+            $lookup: {
+              from: "bootcamps",
+              localField: "bootcamp",
+              foreignField: "_id",
+              as: "bootcampData",
+            },
+          },
+          { $unwind: "$bootcampData" },
+
+          {
             $match: {
               $expr: {
-                $and: [
-                  { $in: ["$$divisionId", "$divisions"] },
-                  { $eq: ["$role", "Student"] },
-                ],
+                $eq: ["$bootcampData.division_id", "$$divisionId"],
               },
             },
           },
+
+          { $group: { _id: "$student" } },
           { $count: "count" },
         ],
         as: "students",
@@ -58,36 +67,93 @@ export async function listDivisionsWithStats() {
         from: "sessions",
         let: { divisionId: "$_id" },
         pipeline: [
-          { $match: { $expr: { $eq: ["$division", "$$divisionId"] } } },
+          {
+            $match: {
+              $expr: { $eq: ["$division", "$$divisionId"] },
+            },
+          },
           { $count: "count" },
         ],
         as: "sessions",
       },
     },
 
-    // groups
+    // groups (via bootcamp → division)
     {
       $lookup: {
         from: "groups",
         let: { divisionId: "$_id" },
         pipeline: [
-          { $match: { $expr: { $eq: ["$division", "$$divisionId"] } } },
+          {
+            $lookup: {
+              from: "bootcamps",
+              localField: "bootcamp",
+              foreignField: "_id",
+              as: "bootcampData",
+            },
+          },
+          { $unwind: "$bootcampData" },
+
+          {
+            $match: {
+              $expr: {
+                $eq: ["$bootcampData.division_id", "$$divisionId"],
+              },
+            },
+          },
+
           { $count: "count" },
         ],
         as: "groups",
       },
     },
 
-    // resources
+    // resources (via bootcamp → division)
     {
       $lookup: {
         from: "resources",
         let: { divisionId: "$_id" },
         pipeline: [
-          { $match: { $expr: { $eq: ["$division", "$$divisionId"] } } },
+          {
+            $lookup: {
+              from: "bootcamps",
+              localField: "bootcamp",
+              foreignField: "_id",
+              as: "bootcampData",
+            },
+          },
+          { $unwind: "$bootcampData" },
+
+          {
+            $match: {
+              $expr: {
+                $eq: ["$bootcampData.division_id", "$$divisionId"],
+              },
+            },
+          },
+
           { $count: "count" },
         ],
         as: "resources",
+      },
+    },
+
+    // ✅ NEW: bootcamps per division (SIMPLE + DIRECT)
+    {
+      $lookup: {
+        from: "bootcamps",
+        let: { divisionId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ["$division_id", "$$divisionId"],
+              },
+            },
+          },
+          { $count: "count" },
+        ],
+        as: "bootcamps",
       },
     },
 
@@ -106,10 +172,13 @@ export async function listDivisionsWithStats() {
         resourceCount: {
           $ifNull: [{ $arrayElemAt: ["$resources.count", 0] }, 0],
         },
+        bootcampCount: {
+          $ifNull: [{ $arrayElemAt: ["$bootcamps.count", 0] }, 0],
+        },
       },
     },
 
-    // final shape
+    // final response shape
     {
       $project: {
         name: 1,
@@ -118,13 +187,13 @@ export async function listDivisionsWithStats() {
         sessionCount: 1,
         groupCount: 1,
         resourceCount: 1,
+        bootcampCount: 1,
         createdAt: 1,
         updatedAt: 1,
       },
     },
   ]).exec();
 }
-
 // Fetch number of bootcamps and total lead instructors in a given division
 export async function getDivisionStatistics(divisionId) {
   // Count bootcamps in the division (using division_id)

@@ -378,10 +378,10 @@ const router = express.Router({ mergeParams: true });
 router.use(protect);
 router.post("/", requirePermission("studentManagement"), addSingleStudent);
 router.post("/bulk", checkLead, addStudentsInBulk);
-router.get("/", requirePermission("studentManagement"), listAllStudents);
+router.get("/", requirePermission({ permission: "studentManagement", student: true }), listAllStudents);
 router.get(
   "/:studentId",
-  requirePermission("studentManagement"),
+  requirePermission({ permission: "studentManagement", student: true }),
   getSingleStudent,
 );
 router.delete(

@@ -114,10 +114,10 @@ router.use(protect);
 router.post("/", requirePermission("sessions"), createSession);
 router.get(
   "/:sessionId",
-  requirePermission("sessions", true),
+  requirePermission({ permission: "sessions", student: true }),
   getSingleSession,
 );
-router.get("/", requirePermission("sessions"), getBootcampSeassions);
+router.get("/", requirePermission({ permission: "sessions", student: true }), getBootcampSeassions);
 router.patch("/:sessionId", requirePermission("sessions"), updateSession);
 router.patch(
   "/:sessionId/cancel",

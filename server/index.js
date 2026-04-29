@@ -27,6 +27,7 @@ import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
 import analyticsRoutes from './routes/analytics.routes.js'
 import publicUserRoutes from "./routes/publicUser.routes.js";
+import bootcampRoutes from "./routes/bootcamp.routes.js";
 
 
 dotenv.config();

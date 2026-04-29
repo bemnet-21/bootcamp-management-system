@@ -5,10 +5,11 @@ import {
   getSeassions,
   updateSession,
   deleteSession,
+  getBootcampSeassions,
   cancelSession,
 } from "../controllers/session.controller.js";
 import protect from "../middlewares/auth.js";
-import { checkInstructor } from "../middlewares/checkInstructor.js";
+import { checkLead } from "../middlewares/checkLead.js";
 import { requirePermission } from "../middlewares/requirePermission.js";
 
 const router = express.Router({ mergeParams: true });
@@ -37,7 +38,7 @@ const router = express.Router({ mergeParams: true });
  *       200:
  *         description: List of sessions
  */
- 
+
 /**
  * @swagger
  * /bootcamps/{bootcampId}/sessions:
@@ -192,21 +193,23 @@ const router = express.Router({ mergeParams: true });
 
 // authenticated only
 router.use(protect);
-
-router.get("/", getSeassions);
-router.get("/:sessionId", getSingleSession);
-
-// both instructor and helper(w permission)
+router.post("/", requirePermission("sessions"), createSession);
+router.get(
+  "/:sessionId",
+  requirePermission("sessions", true),
+  getSingleSession,
+);
+router.get("/", requirePermission("sessions"), getBootcampSeassions);
 router.patch("/:sessionId", requirePermission("sessions"), updateSession);
 router.patch(
   "/:sessionId/cancel",
   requirePermission("sessions"),
   cancelSession,
 );
-router.post("/:sessionId", requirePermission("sessions"), createSession);
+router.delete("/:sessionId", checkLead, deleteSession);
 
-router.delete("/:sessionId", checkInstructor, deleteSession);
-
-// we need lead and heper so lead can and helper if he have the permission
-
+// we should implement this for admin to see all seassions
+// router.get("/", getSeassions);
+// - send reminder not implementd
+// - venue not implemented
 export default router;

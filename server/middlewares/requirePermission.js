@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import BootcampModel from "../models/Bootcamp.model.js";
-import BootcampMemberModel from "../models/BootcampHelper.model.js";
+import BootcampHelperModel from "../models/BootcampHelper.model.js";
+import EnrollmentModel from "../models/Enrollment.model.js";
 
-export const requirePermission = (permission) => {
+export const requirePermission = (permission, student = false) => {
   return async (req, res, next) => {
     const { bootcampId } = req.params;
     const userId = req.user.id;
@@ -16,7 +17,7 @@ export const requirePermission = (permission) => {
         });
       }
 
-      // check from bootcamp 
+      // check from bootcamp
       const bootcamp = await BootcampModel.findById(bootcampId);
 
       if (!bootcamp) {
@@ -25,7 +26,20 @@ export const requirePermission = (permission) => {
           message: "Bootcamp not found.",
         });
       }
-
+      // check if he is admin
+      const admin = req.user.role === "Admin";
+      if (admin) {
+        return next();
+      }
+      if (student) {
+        const isStudent = await EnrollmentModel.findOne({
+          bootcamp: bootcampId,
+          student: userId,
+        });
+        if (isStudent) {
+          return next();
+        }
+      }
       // instructor bypass
       if (
         bootcamp.leadInstructor &&
@@ -35,7 +49,7 @@ export const requirePermission = (permission) => {
       }
 
       // Helper check
-      const member = await BootcampMemberModel.findOne({
+      const member = await BootcampHelperModel.findOne({
         bootcamp_id: bootcampId,
         user: userId,
       });

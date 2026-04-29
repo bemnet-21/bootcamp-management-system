@@ -35,13 +35,14 @@ export const getBootcamps = async (req, res) => {
 };
 
 export const getSingleBootcamp = async (req, res) => {
-  const bootcampId = req.params.id;
-  const user = req.user;
+  const { bootcampId } = req.params;
+  const userId = req.user.id;
   try {
-    const bootcampData = await bootcamp.find({
+    const bootcampData = await bootcamp.findOne({
       _id: bootcampId,
-      leadInstructor: user.id,
+      leadInstructor: userId,
     });
+
     res.status(200).json({
       bootcampData,
     });
@@ -51,37 +52,77 @@ export const getSingleBootcamp = async (req, res) => {
 };
 
 export const addHelper = async (req, res) => {
-  const bootcampId = req.params.id;
+  const { bootcampId } = req.params;
+
   try {
-    const validateData = addUserSchema.parse(req.body);
+    const { user, permissions } = addUserSchema.parse(req.body);
 
-    // check user exist
-    const users = await UserModel.findById(validateData.user);
+    // check user exists
+    const existingUser = await UserModel.findById(user);
+    if (!existingUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-    if (!users) {
+    // prevent duplicates
+    const existingHelper = await BootcampHelper.findOne({
+      bootcamp: bootcampId,
+      user,
+    });
+
+    if (existingHelper) {
+      return res.status(409).json({
+        message: "Helper already exists",
+      });
+    }
+
+    const helper = await BootcampHelper.create({
+      bootcamp: bootcampId,
+      user,
+      permissions,
+    });
+
+    return res.status(201).json({
+      message: "Helper added successfully",
+      data: helper,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const updateHelper = async (req, res) => {
+  const { bootcampId } = req.params;
+
+  try {
+    const { user, permissions } = addUserSchema.parse(req.body);
+
+    const helper = await BootcampHelper.findOneAndUpdate(
+      {
+        bootcamp: bootcampId,
+        user,
+      },
+      {
+        $set: { permissions },
+      },
+      {
+        new: true,
+      },
+    );
+
+    if (!helper) {
       return res.status(404).json({
         message: "Helper not found",
       });
     }
 
-    await BootcampHelper.findOneAndUpdate(
-      {
-        bootcamp_id: bootcampId,
-        user: validateData.user,
-      },
-      {
-        $set: {
-          permissions: validateData.permissions,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      },
-    );
-
     return res.status(200).json({
-      message: "Helpers added successfully",
+      message: "Helper updated successfully",
+      data: helper,
     });
   } catch (err) {
     console.error(err);
@@ -96,7 +137,7 @@ export const getHelpersData = async (req, res) => {
   const helperId = req.params.helperId;
   try {
     const bootcampData = await BootcampHelper.findOne({
-      bootcamp_id: bootcampId,
+      bootcamp: bootcampId,
       user: helperId,
     });
     res.status(200).json({
@@ -112,7 +153,7 @@ export const deleteHelper = async (req, res, next) => {
   const helperId = req.params.helperId;
   try {
     const bootcampData = await BootcampHelper.findOneAndDelete({
-      bootcamp_id: bootcampId,
+      bootcamp: bootcampId,
       user: helperId,
     });
     res.status(200).json({
@@ -128,7 +169,7 @@ export const getAllHelpers = async (req, res) => {
 
   try {
     const helpers = await BootcampHelper.find({
-      bootcamp_id: bootcampId,
+      bootcamp: bootcampId,
     });
     if (!helpers || helpers.length === 0) {
       return res.status(404).json({

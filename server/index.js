@@ -36,22 +36,26 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+app.use('/admin/bootcamps', adminBootcampRoutes)
+app.use("/admin/divisions", divisionRoutes);
+
+
+app.use("/bootcamps/:bootcampId/instructor", instructorRoutes);
+app.use("/bootcamps/:bootcampId/groups", groupsRoute);
+app.use("/bootcamps/:bootcampId/sessions", sessionRoutes);
+app.use("/bootcamps/:bootcampId/students", rosterRoutes);
+app.use("/bootcamps/:bootcampId/progress/", progressRoutes);
+app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
 
 app.use('/auth', authRoutes)
 app.use('/admin/users', userRoutes)
-app.use("/bootcamps/:bootcampId/sessions", sessionRoutes);
 app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
-app.use("/admin/divisions", divisionRoutes);
-app.use('/admin/bootcamps', adminBootcampRoutes)
 app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
 app.use('/student/tasks', studentTaskRoutes)
 app.use('/student/submissions', studentSubmissionRoutes)
-app.use("/instructor/bootcamps", instructorRoutes);
 app.use("/instructor/bootcamps/:bootcampId/submissions/", gradingRoutes)
 app.use('/instructor/bootcamps/:bootcampId/', instructorFeedbackRoutes)
-app.use("/bootcamps/groups" , groupsRoute);
-app.use("/groups/progress/", progressRoutes);
 app.use('/student/sessions', studentFeedbackRoutes)
 app.use("/bootcamps/:bootcampId/students", rosterRoutes);
 app.use('/notifications', notificationsRoutes)

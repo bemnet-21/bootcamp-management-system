@@ -32,7 +32,7 @@ const CreateSessionSchema = z.discriminatedUnion("type", [
   OnPlaceSession,
 ]);
 
-export const UpdateSessionSchema = z.object({
+const UpdateSessionSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
   instructor: z.string().min(1).optional(),
@@ -50,8 +50,8 @@ export const UpdateSessionSchema = z.object({
 export const createSession = async (req, res) => {
   try {
     const { bootcampId } = req.params;
-
-    const validatedData = CreateSessionSchema.parse(req.body);
+    // 1. Validate input
+    const validatedData = CreateSeassionSchema.parse(req.body);
     validatedData.bootcamp = bootcampId;
 
     const startTime = new Date(validatedData.startTime);
@@ -262,11 +262,19 @@ export const updateSession = async (req, res) => {
       instructor: validatedData.instructor ?? session.instructor,
       division: validatedData.division ?? session.division,
       bootcamp: validatedData.bootcamp ?? session.bootcamp,
-      startTime: validatedData.startTime ? new Date(validatedData.startTime) : session.startTime,
-      endTime: validatedData.endTime ? new Date(validatedData.endTime) : session.endTime,
+      startTime: validatedData.startTime
+        ? new Date(validatedData.startTime)
+        : session.startTime,
+      endTime: validatedData.endTime
+        ? new Date(validatedData.endTime)
+        : session.endTime,
       type: validatedData.type ?? session.type,
-      location: validatedData.location !== undefined ? validatedData.location : session.location,
-      link: validatedData.link !== undefined ? validatedData.link : session.link,
+      location:
+        validatedData.location !== undefined
+          ? validatedData.location
+          : session.location,
+      link:
+        validatedData.link !== undefined ? validatedData.link : session.link,
       status: validatedData.status ?? session.status,
     };
 
@@ -340,7 +348,7 @@ export const updateSession = async (req, res) => {
 
     // Instructor conflict
     const instructorConflict = await SessionModel.findOne({
-      _id: { $ne: id },
+      _id: { $ne: sessionId },
       instructor: merged.instructor,
       startTime: { $lt: end },
       endTime: { $gt: start },
@@ -348,7 +356,8 @@ export const updateSession = async (req, res) => {
     if (instructorConflict) {
       return res.status(409).json({
         error: "Schedule Conflict",
-        message: "Instructor is already assigned to another session at this time.",
+        message:
+          "Instructor is already assigned to another session at this time.",
       });
     }
 
@@ -360,6 +369,8 @@ export const updateSession = async (req, res) => {
       session,
     });
   } catch (error) {
+    console.log(error);
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         error: "Validation Error",
@@ -409,13 +420,14 @@ export const cancelSession = async (req, res) => {
       session,
     });
   } catch (error) {
+    console.log(error);
+
     return res.status(500).json({
       error: "Server Error",
       message: "Something went wrong while cancelling session.",
     });
   }
 };
-
 
 export const deleteSession = async (req, res) => {
   try {
@@ -445,6 +457,46 @@ export const deleteSession = async (req, res) => {
     return res.status(500).json({
       error: "Server Error",
       message: "Something went wrong while deleting session.",
+    });
+  }
+};
+
+export const getBootcampSeassions = async (req, res) => {
+  const { bootcampId } = req.params;
+  try {
+    const { instructor, startTime, endTime } = req.query;
+
+    const filter = {};
+    filter.bootcamp = bootcampId;
+    if (instructor) filter.instructor = instructor;
+
+    // FIXED TIME FILTER LOGIC
+    if (startTime || endTime) {
+      if (!startTime || !endTime) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message:
+            "Both start time and end time are required to filter by date.",
+        });
+      }
+
+      const start = new Date(startTime);
+      start.setUTCHours(0, 0, 0, 0);
+
+      const end = new Date(endTime);
+      end.setUTCHours(23, 59, 59, 999);
+
+      // CORRECT OVERLAP FILTER
+      filter.startTime = { $lte: end };
+      filter.endTime = { $gte: start };
+    }
+    console.log("Filter for fetching sessions:", filter);
+    const sessions = await SessionModel.find(filter).sort({ createdAt: -1 });
+    return res.json({ sessions });
+  } catch (err) {
+    return res.status(500).json({
+      error: "Server Error",
+      message: "Something went wrong.",
     });
   }
 };

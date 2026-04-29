@@ -89,34 +89,24 @@ export const updateProgressDetail = async (req, res) => {
   try {
     const data = updateProgressSchema.parse(req.body);
 
-    const progress = await GroupProgressModel.findById(progressId);
-
-    if (!progress) {
-      return res.status(404).json({
-        message: "Progress not found",
-      });
-    }
-
-    // ensure progress belongs to the group
-    if (progress.group.toString() !== groupId) {
-      return res.status(400).json({
-        message: "Progress does not belong to this group",
-      });
-    }
-
-    // ownership check
-    if (progress.submittedBy.toString() !== userId) {
-      return res.status(403).json({
-        message: "Only the creator can update the progress",
-      });
-    }
-
-    const updated = await GroupProgressModel.findByIdAndUpdate(
-      progressId,
+    const updated = await GroupProgressModel.findOneAndUpdate(
+      {
+        _id: progressId,
+        group: groupId,
+        submittedBy: userId,
+      },
       { $set: data },
-      { new: true },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      },
     );
-    console.log(updated);
+
+    if (!updated) {
+      return res.status(403).json({
+        message: "Not allowed or progress not found",
+      });
+    }
 
     return res.status(200).json({
       message: "Progress updated successfully",
@@ -135,7 +125,6 @@ export const updateProgressDetail = async (req, res) => {
     });
   }
 };
-
 export const getProgressDetail = async (req, res) => {
   const { groupId } = req.params;
   const userId = req.user.id;
@@ -164,23 +153,10 @@ export const getProgressDetail = async (req, res) => {
 
 export const getAllWeekProgress = async (req, res) => {
   const { bootcampId } = req.params;
-  const userId = req.user.id;
   const weekNumber = req.query.week;
 
   try {
-    // check membership
-    const isMember = await GroupMemberModel.findOne({
-      bootcamp: bootcampId,
-      user: userId,
-    });
-
-    if (!isMember && bootcamp.leadInstructor.toString() !== userId) {
-      return res.status(403).json({
-        message: "Forbidden",
-      });
-    }
-
-    //  query
+    // build query
     const query = {
       bootcamp: bootcampId,
     };
@@ -191,15 +167,10 @@ export const getAllWeekProgress = async (req, res) => {
 
     const progress = await GroupProgressModel.find(query);
 
-    if (progress.length === 0) {
-      return res.status(200).json({
-        message: "No progress found",
-        data: [],
-      });
-    }
-
     return res.status(200).json({
-      message: "Progress fetched successfully",
+      message: progress.length
+        ? "Progress fetched successfully"
+        : "No progress found",
       data: progress,
     });
   } catch (err) {

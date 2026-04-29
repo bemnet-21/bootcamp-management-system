@@ -59,6 +59,7 @@ app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
 app.use("/bootcamps/:bootcampId/students", rosterRoutes);
 app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
+app.use("/bootcamps", bootcampRoutes);
 
 
 app.use('/student/tasks', studentTaskRoutes)
@@ -67,7 +68,6 @@ app.use("/instructor/bootcamps/:bootcampId/submissions/", gradingRoutes)
 app.use('/instructor/bootcamps/:bootcampId/', instructorFeedbackRoutes)
 app.use('/student/sessions', studentFeedbackRoutes)
 app.use('/notifications', notificationsRoutes)
-app.use("/bootcamps/:bootcampId", bootcampRoutes);
 
 app.use('/', attendanceRoutes)
 

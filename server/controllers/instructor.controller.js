@@ -54,6 +54,10 @@ export const getSingleBootcamp = async (req, res) => {
 export const addHelper = async (req, res) => {
   const { bootcampId } = req.params;
 
+  console.log('=== ADD HELPER DEBUG ===');
+  console.log('bootcampId from params:', bootcampId);
+  console.log('req.body:', req.body);
+
   try {
     const { user, permissions } = addUserSchema.parse(req.body);
 
@@ -77,20 +81,28 @@ export const addHelper = async (req, res) => {
       });
     }
 
+    console.log('Creating helper with:', { bootcamp: bootcampId, user, permissions });
+
     const helper = await BootcampHelper.create({
       bootcamp: bootcampId,
       user,
       permissions,
     });
 
+    // Populate user details before returning
+    const populatedHelper = await BootcampHelper.findById(helper._id).populate('user', 'firstName lastName email');
+
+    console.log('Helper created successfully:', populatedHelper);
+
     return res.status(201).json({
       message: "Helper added successfully",
-      data: helper,
+      data: populatedHelper,
     });
   } catch (err) {
-    console.log(err);
+    console.error('Error adding helper:', err);
     return res.status(500).json({
       message: "Internal server error",
+      error: err.message,
     });
   }
 };
@@ -112,7 +124,7 @@ export const updateHelper = async (req, res) => {
       {
         new: true,
       },
-    );
+    ).populate('user', 'firstName lastName email');
 
     if (!helper) {
       return res.status(404).json({
@@ -128,6 +140,7 @@ export const updateHelper = async (req, res) => {
     console.error(err);
     return res.status(500).json({
       message: "Internal server error",
+      error: err.message,
     });
   }
 };
@@ -139,12 +152,19 @@ export const getHelpersData = async (req, res) => {
     const bootcampData = await BootcampHelper.findOne({
       bootcamp: bootcampId,
       user: helperId,
-    });
+    }).populate('user', 'firstName lastName email');
+
+    if (!bootcampData) {
+      return res.status(404).json({
+        message: "Helper not found",
+      });
+    }
+
     res.status(200).json({
       bootcampData,
     });
   } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -156,11 +176,19 @@ export const deleteHelper = async (req, res, next) => {
       bootcamp: bootcampId,
       user: helperId,
     });
+
+    if (!bootcampData) {
+      return res.status(404).json({
+        message: "Helper not found",
+      });
+    }
+
     res.status(200).json({
+      message: "Helper removed successfully",
       bootcampData,
     });
   } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -170,17 +198,14 @@ export const getAllHelpers = async (req, res) => {
   try {
     const helpers = await BootcampHelper.find({
       bootcamp: bootcampId,
-    });
-    if (!helpers || helpers.length === 0) {
-      return res.status(404).json({
-        message: "Helpers Not found ",
-      });
-    }
+    }).populate('user', 'firstName lastName email');
+
     res.status(200).json({
+      message: helpers.length === 0 ? "No helpers found" : "Helpers retrieved successfully",
       helpers,
     });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };

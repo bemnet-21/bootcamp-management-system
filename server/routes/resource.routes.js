@@ -199,8 +199,8 @@ const router = express.Router({ mergeParams: true });
  */
 
 router.post("/", protect, checkInstructor, upload.single("file"), createResource);
-router.get("/", protect, restrictTo("Student"), getResources);
-router.get("/:resourceId", protect, restrictTo("Student"), getResourceById);
+router.get("/", protect, getResources);
+router.get("/:resourceId", protect, getResourceById);
 router.get("/:resourceId/download", protect, restrictTo("Student"), downloadResource);
 router.delete("/:resourceId", protect, checkInstructor, deleteResource);
 router.put("/:resourceId", protect, checkInstructor, updateResourceMetaData)

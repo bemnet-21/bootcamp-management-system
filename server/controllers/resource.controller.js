@@ -143,7 +143,10 @@ export async function getResourceById(req, res) {
         const filter = { _id: resourceId, bootcamp: bootcampId };
         if (sessionId) filter.session = sessionId;
         const resource = await Resource.findOne(filter)
-            .populate("division session uploadedBy");
+                                        .populate("division", "name")
+                                        .populate("session", "title")
+                                        .populate("uploadedBy", "firstName lastName email");
+            // .populate("division session uploadedBy");
         
         if (!resource) {
             return res.status(404).json({

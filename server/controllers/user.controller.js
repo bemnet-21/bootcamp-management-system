@@ -154,7 +154,8 @@ export async function createUser(req, res) {
 }
 
 export async function listUsers(req, res) {
-    const { role, division, status, page = 1, limit = 20 } = req.query;
+
+    const { role, division, status, page = 1, limit = 20, search } = req.query;
     const filter = {};
 
     if (role !== undefined && role !== "") {
@@ -204,12 +205,48 @@ export async function listUsers(req, res) {
         filter.divisions = resolved;
     }
 
+
+    // Search filter for username or firstName + lastName
+    let searchFilter = {};
+    if (search && typeof search === 'string' && search.trim() !== '') {
+        const searchStr = search.trim();
+        // If search contains a space, try to match firstName + lastName
+        if (searchStr.includes(' ')) {
+            const [first, ...rest] = searchStr.split(' ');
+            const last = rest.join(' ');
+            searchFilter = {
+                $or: [
+                    { username: { $regex: searchStr, $options: 'i' } },
+                    {
+                        $and: [
+                            { firstName: { $regex: first, $options: 'i' } },
+                            { lastName: { $regex: last, $options: 'i' } }
+                        ]
+                    }
+                ]
+            };
+        } else {
+            // Single word: match username, firstName, or lastName
+            searchFilter = {
+                $or: [
+                    { username: { $regex: searchStr, $options: 'i' } },
+                    { firstName: { $regex: searchStr, $options: 'i' } },
+                    { lastName: { $regex: searchStr, $options: 'i' } }
+                ]
+            };
+        }
+    }
+
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
 
-    const total = await User.countDocuments(filter);
-    const users = await User.find(filter)
+    const finalFilter = Object.keys(searchFilter).length > 0
+        ? { ...filter, ...searchFilter }
+        : filter;
+
+    const total = await User.countDocuments(finalFilter);
+    const users = await User.find(finalFilter)
         .populate("divisions")
         .sort({ createdAt: -1 })
         .skip(skip)

@@ -39,7 +39,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 app.use('/auth', authRoutes)
 app.use('/admin/users', userRoutes)
-app.use("/bootcamps/sessions", sessionRoutes);
+app.use("/bootcamps/:bootcampId/sessions", sessionRoutes);
 app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
 app.use("/admin/divisions", divisionRoutes);

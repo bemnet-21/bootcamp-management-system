@@ -1,5 +1,7 @@
 import { z } from "zod";
 import SessionModel from "../models/Session.model.js";
+import EnrollmentModel from "../models/Enrollment.model.js";
+import NotificationModel from "../models/Notifications.model.js";
 import mongoose from "mongoose";
 import { type } from "os";
 
@@ -25,7 +27,7 @@ const OnPlaceSession = base.extend({
   link: z.undefined(),
 });
 
-const CreateSeassionSchema = z.discriminatedUnion("type", [
+const CreateSessionSchema = z.discriminatedUnion("type", [
   OnlineSession,
   OnPlaceSession,
 ]);
@@ -44,11 +46,12 @@ export const UpdateSessionSchema = z.object({
   status: z.enum(["Scheduled", "Cancelled", "Completed"]).optional(),
 });
 
+
 export const createSession = async (req, res) => {
   try {
-    const {bootcampId} = req.params
-    // 1. Validate input
-    const validatedData = CreateSeassionSchema.parse(req.body);
+    const { bootcampId } = req.params;
+
+    const validatedData = CreateSessionSchema.parse(req.body);
     validatedData.bootcamp = bootcampId;
 
     const startTime = new Date(validatedData.startTime);
@@ -62,74 +65,100 @@ export const createSession = async (req, res) => {
       });
     }
 
-    const durationInMin = (endTime - startTime) / (1000 * 60);
+    
 
-    if (durationInMin < 30) {
-      return res.status(400).json({
-        error: "Invalid Session Duration",
-        message: "Session duration must be at least 30 minutes.",
-      });
-    }
-
-    if (startTime < now) {
+    if (startTime < new Date(now.getTime() - 60000)) {
       return res.status(400).json({
         error: "Invalid Time",
         message: "Start time cannot be in the past.",
       });
     }
 
-    // seassion overlap checking
-    const overlappingSessions = await SessionModel.find({
-      location: validatedData.location,
-      startTime: { $lt: endTime },
-      endTime: { $gt: startTime },
-    });
+    const [overlappingLocation, instructorConflict] = await Promise.all([
+      SessionModel.findOne({
+        location: validatedData.location,
+        startTime: { $lt: endTime },
+        endTime: { $gt: startTime },
+      }),
+      SessionModel.findOne({
+        instructor: validatedData.instructor,
+        startTime: { $lt: endTime },
+        endTime: { $gt: startTime },
+      })
+    ]);
 
-    if (overlappingSessions.length > 0) {
+    if (overlappingLocation) {
       return res.status(409).json({
         error: "Schedule Conflict",
-        message: "There is already a session scheduled at this time.",
+        message: `The location "${validatedData.location}" is already booked for this time slot.`,
       });
     }
-
-    // instructor conflict check
-    const instructorConflict = await SessionModel.findOne({
-      instructor: validatedData.instructor,
-      startTime: { $lt: endTime },
-      endTime: { $gt: startTime },
-    });
 
     if (instructorConflict) {
       return res.status(409).json({
         error: "Schedule Conflict",
-        message:
-          "The instructor is already assigned to another session during this time.",
+        message: "The instructor is already assigned to another session during this time.",
       });
     }
-    console.log(validatedData);
 
-    //  Create session
     const session = await SessionModel.create({
       ...validatedData,
       startTime,
       endTime,
     });
 
+    setImmediate(async () => {
+      try {
+        console.log("starting notification dispatch:", session.bootcamp)
+        if(!EnrollmentModel) {
+          console.log("No model")
+        }
+        const enrollments = await EnrollmentModel.find({
+          bootcamp: session.bootcamp,
+          status: "active"
+        }).select("student");
+
+        console.log(`Found ${enrollments.length} active enrollments for bootcamp ${session.bootcamp}.`);
+
+        if (enrollments.length > 0) {
+          const notifications = enrollments.map(e => ({
+            userId: e.student,
+            title: `New Session: ${session.title}`,
+            message: `A new session has been scheduled for ${session.title} at ${session.location || 'Online'}.`,
+            type: "SESSION_REMINDER",
+            metadata: { 
+               sessionId: session._id,
+               startTime: session.startTime.toISOString() 
+            }
+          }));
+
+          await NotificationModel.insertMany(notifications);
+          console.log(`Successfully dispatched ${notifications.length} notifications.`);
+        }
+      } catch (notifyErr) {
+        console.error("Background Notification Error:", notifyErr);
+      }
+    });
+
+    // 6. Return response immediately
     return res.status(201).json({
       message: "Session created successfully",
       data: session,
     });
+
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({
         error: "Validation Error",
-        message: "Invalid input data. Please check required fields.",
+        message: "Invalid input data.",
+        details: err.errors // Provide specific Zod errors for better debugging
       });
     }
 
+    console.error("Session Creation Error:", err);
     return res.status(500).json({
       error: "Server Error",
-      message: "Something went wrong.",
+      message: "An internal error occurred while creating the session.",
     });
   }
 };
@@ -137,8 +166,11 @@ export const createSession = async (req, res) => {
 export const getSeassions = async (req, res) => {
   try {
     const { division, instructor, startTime, endTime } = req.query;
+    const { bootcampId } = req.params
 
-    const filter = {};
+    const filter = {
+      bootcamp: bootcampId
+    };
 
     if (division) filter.division = division;
     if (instructor) filter.instructor = instructor;
@@ -176,15 +208,16 @@ export const getSeassions = async (req, res) => {
 
 export const getSingleSession = async (req, res) => {
   try {
-    const id = req.params.bootcampId;
-
-    if (!mongoose.isValidObjectId(id)) {
+    const { sessionId, bootcampId } = req.params;
+    if (!mongoose.isValidObjectId(sessionId) || !mongoose.isValidObjectId(bootcampId)) {
       return res.status(400).json({
         error: "Validation Error",
         message: "Invalid session id.",
       });
     }
-    const session = await SessionModel.findById(id);
+    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId })
+                                      .populate("instructor", "firstName lastName email")
+                                      .populate("division", "name");
     if (!session) {
       return res.status(404).json({
         error: "Not Found",
@@ -205,10 +238,16 @@ export const getSingleSession = async (req, res) => {
 
 export const updateSession = async (req, res) => {
   try {
-    const id = req.params.bootcampId;
+    const { sessionId, bootcampId } = req.params;
+    if (!mongoose.isValidObjectId(sessionId) || !mongoose.isValidObjectId(bootcampId)) {
+      return res.status(400).json({
+        error: "Validation Error",
+        message: "Invalid session id.",
+      });
+    }
     // Validate input
     const validatedData = UpdateSessionSchema.parse(req.body);
-    const session = await SessionModel.findById(id);
+    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId });
     if (!session) {
       return res.status(404).json({
         error: "Not Found",
@@ -285,7 +324,8 @@ export const updateSession = async (req, res) => {
     // Location conflict
     if (merged.type === "onPlace") {
       const locationConflict = await SessionModel.findOne({
-        _id: { $ne: id },
+        _id: { $ne: sessionId },
+        bootcamp: bootcampId,
         location: merged.location,
         startTime: { $lt: end },
         endTime: { $gt: start },
@@ -335,16 +375,16 @@ export const updateSession = async (req, res) => {
 
 export const cancelSession = async (req, res) => {
   try {
-    const id = req.params.bootcampId;
+    const { sessionId, bootcampId } = req.params;
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!mongoose.isValidObjectId(sessionId) || !mongoose.isValidObjectId(bootcampId)) {
       return res.status(400).json({
         error: "Validation Error",
         message: "Invalid session id.",
       });
     }
 
-    const session = await SessionModel.findById(id);
+    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId });
 
     if (!session) {
       return res.status(404).json({
@@ -379,16 +419,15 @@ export const cancelSession = async (req, res) => {
 
 export const deleteSession = async (req, res) => {
   try {
-    const id = req.params.bootcampId;
-
-    if (!mongoose.isValidObjectId(id)) {
+    const { sessionId, bootcampId } = req.params;
+    if (!mongoose.isValidObjectId(sessionId) || !mongoose.isValidObjectId(bootcampId)) {
       return res.status(400).json({
         error: "Validation Error",
         message: "Invalid session id.",
       });
     }
 
-    const session = await SessionModel.findById(id);
+    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId });
 
     if (!session) {
       return res.status(404).json({
@@ -397,7 +436,7 @@ export const deleteSession = async (req, res) => {
       });
     }
 
-    await SessionModel.deleteOne({ _id: id });
+    await SessionModel.deleteOne({ _id: sessionId, bootcamp: bootcampId });
 
     return res.status(200).json({
       message: "Session permanently deleted",

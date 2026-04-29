@@ -1,5 +1,9 @@
+
 import mongoose from "mongoose";
 import Division from "../models/Division.model.js";
+import Bootcamp from "../models/Bootcamp.model.js";
+import User from "../models/User.model.js";
+import UserModel from "../models/User.model.js";
 
 // create a new division
 export async function createDivision(payload) {
@@ -14,6 +18,11 @@ export async function updateDivision(id, updates) {
     runValidators: true,
   });
   return updated;
+}
+
+// Get a division by its id
+export async function getDivisionById(id) {
+  return Division.findById(id);
 }
 
 // list divisions
@@ -82,308 +91,6 @@ export async function listDivisionsWithStats() {
       },
     },
 
-    {
-      $addFields: {
-        studentCount: {
-          $ifNull: [{ $arrayElemAt: ["$students.count", 0] }, 0],
-        },
-        sessionCount: {
-          $ifNull: [{ $arrayElemAt: ["$sessions.count", 0] }, 0],
-        },
-        groupCount: { $ifNull: [{ $arrayElemAt: ["$groups.count", 0] }, 0] },
-        resourceCount: {
-          $ifNull: [{ $arrayElemAt: ["$resources.count", 0] }, 0],
-        },
-      },
-    },
-
-    {
-      $project: {
-        name: 1,
-        description: 1,
-        studentCount: 1,
-        sessionCount: 1,
-        groupCount: 1,
-        resourceCount: 1,
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    },
-  ]).exec();
-}
-
-export async function getDivisionStatistics(divisionId) {
-  const divisionObjectId = new mongoose.Types.ObjectId(divisionId);
-
-  // Use $facet so all metrics are computed in a single aggregation call.
-  const [result] = await Division.aggregate([
-    { $match: { _id: divisionObjectId } },
-    {
-      $facet: {
-        students: [
-          {
-            $lookup: {
-              from: "users",
-              let: { divisionId: "$_id" },
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $and: [
-                        { $in: ["$$divisionId", "$divisions"] },
-                        { $eq: ["$role", "Student"] },
-                      ],
-                    },
-                  },
-                },
-                { $count: "count" },
-              ],
-              as: "agg",
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              count: { $ifNull: [{ $arrayElemAt: ["$agg.count", 0] }, 0] },
-            },
-          },
-        ],
-        sessions: [
-          {
-            $lookup: {
-              from: "sessions",
-              let: { divisionId: "$_id" },
-              pipeline: [
-                { $match: { $expr: { $eq: ["$division", "$$divisionId"] } } },
-                { $count: "count" },
-              ],
-              as: "agg",
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              count: { $ifNull: [{ $arrayElemAt: ["$agg.count", 0] }, 0] },
-            },
-          },
-        ],
-        attendance: [
-          {
-            $lookup: {
-              from: "sessions",
-              let: { divisionId: "$_id" },
-              pipeline: [
-                { $match: { $expr: { $eq: ["$division", "$$divisionId"] } } },
-                { $project: { _id: 1 } },
-              ],
-              as: "sessions",
-            },
-          },
-          { $project: { _id: 0, sessionIds: "$sessions._id" } },
-          {
-            $lookup: {
-              from: "attendances",
-              let: { sessionIds: "$sessionIds" },
-              pipeline: [
-                { $match: { $expr: { $in: ["$session", "$$sessionIds"] } } },
-                {
-                  $group: {
-                    _id: null,
-                    total: { $sum: 1 },
-                    attended: {
-                      $sum: {
-                        $cond: [
-                          { $in: ["$status", ["Present", "Late", "Excused"]] },
-                          1,
-                          0,
-                        ],
-                      },
-                    },
-                  },
-                },
-                {
-                  $project: {
-                    _id: 0,
-                    attendancePercentage: {
-                      $cond: [
-                        { $eq: ["$total", 0] },
-                        0,
-                        {
-                          $multiply: [
-                            { $divide: ["$attended", "$total"] },
-                            100,
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                },
-              ],
-              as: "agg",
-            },
-          },
-          {
-            $project: {
-              attendancePercentage: {
-                $ifNull: [
-                  { $arrayElemAt: ["$agg.attendancePercentage", 0] },
-                  0,
-                ],
-              },
-            },
-          },
-        ],
-        rating: [
-          {
-            $lookup: {
-              from: "sessions",
-              let: { divisionId: "$_id" },
-              pipeline: [
-                { $match: { $expr: { $eq: ["$division", "$$divisionId"] } } },
-                { $project: { _id: 1 } },
-              ],
-              as: "sessions",
-            },
-          },
-          { $project: { _id: 0, sessionIds: "$sessions._id" } },
-          {
-            $lookup: {
-              from: "feedbacks",
-              let: { sessionIds: "$sessionIds" },
-              pipeline: [
-                { $match: { $expr: { $in: ["$session", "$$sessionIds"] } } },
-                { $group: { _id: null, avgRating: { $avg: "$rating" } } },
-                {
-                  $project: {
-                    _id: 0,
-                    avgRating: { $ifNull: ["$avgRating", 0] },
-                  },
-                },
-              ],
-              as: "agg",
-            },
-          },
-          {
-            $project: {
-              averageRating: {
-                $ifNull: [{ $arrayElemAt: ["$agg.avgRating", 0] }, 0],
-              },
-            },
-          },
-        ],
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        studentCount: {
-          $ifNull: [{ $arrayElemAt: ["$students.count", 0] }, 0],
-        },
-        sessionCount: {
-          $ifNull: [{ $arrayElemAt: ["$sessions.count", 0] }, 0],
-        },
-        attendancePercentage: {
-          $ifNull: [
-            { $arrayElemAt: ["$attendance.attendancePercentage", 0] },
-            0,
-          ],
-        },
-        averageRating: {
-          $ifNull: [{ $arrayElemAt: ["$rating.averageRating", 0] }, 0],
-        },
-      },
-    },
-  ]).exec();
-
-  return {
-    studentCount: Number(result?.studentCount ?? 0),
-    sessionCount: Number(result?.sessionCount ?? 0),
-    attendancePercentage: Number(result?.attendancePercentage ?? 0),
-    averageRating: Number(result?.averageRating ?? 0),
-  };
-}
-
-export async function getDivisionWithStats(divisionId) {
-  const result = await Division.aggregate([
-    {
-      $match: {
-        _id: new mongoose.Types.ObjectId(divisionId),
-      },
-    },
-
-    // students
-    {
-      $lookup: {
-        from: "users",
-        let: { divisionId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $in: ["$$divisionId", "$divisions"] },
-                  { $eq: ["$role", "Student"] },
-                ],
-              },
-            },
-          },
-          { $count: "count" },
-        ],
-        as: "students",
-      },
-    },
-
-    // sessions
-    {
-      $lookup: {
-        from: "sessions",
-        let: { divisionId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ["$division", "$$divisionId"] },
-            },
-          },
-          { $count: "count" },
-        ],
-        as: "sessions",
-      },
-    },
-
-    // groups
-    {
-      $lookup: {
-        from: "groups",
-        let: { divisionId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ["$division", "$$divisionId"] },
-            },
-          },
-          { $count: "count" },
-        ],
-        as: "groups",
-      },
-    },
-
-    // resources
-    {
-      $lookup: {
-        from: "resources",
-        let: { divisionId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ["$division", "$$divisionId"] },
-            },
-          },
-          { $count: "count" },
-        ],
-        as: "resources",
-      },
-    },
-
     // flatten counts
     {
       $addFields: {
@@ -416,8 +123,33 @@ export async function getDivisionWithStats(divisionId) {
       },
     },
   ]).exec();
+}
 
-  return result[0] || null;
+// Fetch number of bootcamps and total lead instructors in a given division
+export async function getDivisionStatistics(divisionId) {
+  // Count bootcamps in the division (using division_id)
+  const bootcampCount = await Bootcamp.countDocuments({ division_id: divisionId });
+
+  // Find all bootcamps in the division
+  const bootcamps = await Bootcamp.find({ division_id: divisionId }, 'leadInstructor');
+  // Get all unique lead instructor IDs (filter out nulls)
+  const leadInstructorIds = bootcamps
+    .map(b => b.leadInstructor)
+    .filter(id => !!id);
+  // Count unique lead instructors
+  const uniqueLeadInstructorCount = new Set(leadInstructorIds.map(id => id.toString())).size;
+
+  // Count students in the division
+  const studentCount = await UserModel.countDocuments({
+    divisions: divisionId,
+    role: 'Student'
+  });
+
+  return {
+    bootcampCount,
+    leadInstructorCount: uniqueLeadInstructorCount,
+    studentCount
+  };
 }
 
 // delete division

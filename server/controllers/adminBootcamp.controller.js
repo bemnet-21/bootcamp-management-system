@@ -27,6 +27,7 @@ const updateBootcampSchema = z.object({
   endDate: z.coerce.date().optional(),
   leadInstructor: z.string().optional(),
   students: z.array(z.string()).optional(),
+  isActive: z.boolean().optional(),
 });
 
 // create bootcamp

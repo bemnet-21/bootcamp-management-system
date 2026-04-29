@@ -11,7 +11,7 @@ import protect from "../middlewares/auth.js";
 import { checkInstructor } from "../middlewares/checkInstructor.js";
 import { requirePermission } from "../middlewares/requirePermission.js";
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 /**
  * @swagger
@@ -22,10 +22,17 @@ const router = express.Router();
 
 /**
  * @swagger
- * /bootcamps/sessions:
+ * /bootcamps/{bootcampId}/sessions:
  *   get:
- *     summary: List all sessions
+ *     summary: List all sessions for a specific bootcamp
  *     tags: [Sessions]
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID to filter sessions
  *     responses:
  *       200:
  *         description: List of sessions
@@ -33,7 +40,7 @@ const router = express.Router();
  
 /**
  * @swagger
- * /bootcamps/sessions/{bootcampId}:
+ * /bootcamps/{bootcampId}/sessions:
  *   post:
  *     summary: Create a new session
  *     tags: [Sessions]
@@ -46,19 +53,89 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         description: Bootcamp ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             oneOf:
+ *               - type: object
+ *                 required:
+ *                   - title
+ *                   - instructor
+ *                   - division
+ *                   - startTime
+ *                   - endTime
+ *                   - type
+ *                   - link
+ *                 properties:
+ *                   title:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   instructor:
+ *                     type: string
+ *                   division:
+ *                     type: string
+ *                   startTime:
+ *                     type: string
+ *                     format: date-time
+ *                   endTime:
+ *                     type: string
+ *                     format: date-time
+ *                   type:
+ *                     type: string
+ *                     enum: [online]
+ *                   link:
+ *                     type: string
+ *               - type: object
+ *                 required:
+ *                   - title
+ *                   - instructor
+ *                   - division
+ *                   - startTime
+ *                   - endTime
+ *                   - type
+ *                   - location
+ *                 properties:
+ *                   title:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   instructor:
+ *                     type: string
+ *                   division:
+ *                     type: string
+ *                   startTime:
+ *                     type: string
+ *                     format: date-time
+ *                   endTime:
+ *                     type: string
+ *                     format: date-time
+ *                   type:
+ *                     type: string
+ *                     enum: [onPlace]
+ *                   location:
+ *                     type: string
  *     responses:
  *       201:
  *         description: Session created
  */
 /**
  * @swagger
- * /bootcamps/sessions/{id}:
+ * /bootcamps/{bootcampId}/sessions/{sessionId}:
  *   get:
  *     summary: Get session by ID
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
+ *       - in: path
+ *         name: sessionId
  *         required: true
  *         schema:
  *           type: string
@@ -70,7 +147,7 @@ const router = express.Router();
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: sessionId
  *         required: true
  *         schema:
  *           type: string
@@ -82,7 +159,7 @@ const router = express.Router();
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: sessionId
  *         required: true
  *         schema:
  *           type: string
@@ -90,13 +167,18 @@ const router = express.Router();
  *       200:
  *         description: Session deleted
  *
- * /bootcamps/sessions/{id}/cancel:
+ * /bootcamps/{bootcampId}/sessions/{sessionId}/cancel:
  *   patch:
  *     summary: Cancel a session by ID
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sessionId
  *         required: true
  *         schema:
  *           type: string
@@ -112,18 +194,18 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/", getSeassions);
-router.get("/:bootcampId", getSingleSession);
+router.get("/:sessionId", getSingleSession);
 
 // both instructor and helper(w permission)
-router.patch("/:bootcampId", requirePermission("sessions"), updateSession);
+router.patch("/:sessionId", requirePermission("sessions"), updateSession);
 router.patch(
-  "/:bootcampId/cancel",
+  "/:sessionId/cancel",
   requirePermission("sessions"),
   cancelSession,
 );
-router.post("/:bootcampId", requirePermission("sessions"), createSession);
+router.post("/:sessionId", requirePermission("sessions"), createSession);
 
-router.delete("/:bootcampId", checkInstructor, deleteSession);
+router.delete("/:sessionId", checkInstructor, deleteSession);
 
 // we need lead and heper so lead can and helper if he have the permission
 

@@ -13,7 +13,7 @@ import {
   listDivisionsWithStats,
   updateDivision,
   deleteDivision,
-  getDivisionWithStats,
+  getDivisionById,
 } from "../services/division.service.js";
 
 // create a new division
@@ -170,7 +170,7 @@ export async function getDivisionDetail(req, res, next) {
       });
     }
 
-    const division = await getDivisionWithStats(id);
+    const division = await getDivisionById(id);
 
     //   if division not found
     if (!division) {

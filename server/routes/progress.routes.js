@@ -19,7 +19,7 @@ router.post("/:groupId", createProgress);
 // get progress detail
 router.get(
   "/:groupId/:progressId",
-  requirePermission((student = true)),
+  requirePermission({ student: true }),
   getProgressDetail,
 );
 

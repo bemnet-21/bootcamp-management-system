@@ -1,54 +1,52 @@
+// requirePermission.js
 import mongoose from "mongoose";
 import BootcampModel from "../models/Bootcamp.model.js";
 import BootcampHelperModel from "../models/BootcampHelper.model.js";
 import EnrollmentModel from "../models/Enrollment.model.js";
 
-export const requirePermission = (permission, student = false) => {
+export const requirePermission = (options = {}) => {
+  // Support both: requirePermission("edit_progress") 
+  // and: requirePermission({ permission: "edit_progress", student: true })
+  const permission = typeof options === 'string' ? options : options.permission;
+  const allowStudent = typeof options === 'object' ? options.student : false;
+
   return async (req, res, next) => {
+    // Ensure bootcampId exists in params (requires mergeParams: true in router)
     const { bootcampId } = req.params;
     const userId = req.user.id;
 
     try {
-      // 1. validate id
-      if (!mongoose.isValidObjectId(bootcampId)) {
+      if (!bootcampId || !mongoose.isValidObjectId(bootcampId)) {
         return res.status(400).json({
           error: "Validation Error",
-          message: "Invalid bootcamp id",
+          message: "Invalid or missing bootcamp id",
         });
       }
 
-      // check from bootcamp
       const bootcamp = await BootcampModel.findById(bootcampId);
-
       if (!bootcamp) {
         return res.status(404).json({
           error: "Not Found",
           message: "Bootcamp not found.",
         });
       }
-      // check if he is admin
-      const admin = req.user.role === "Admin";
-      if (admin) {
-        return next();
-      }
-      if (student) {
+
+      // 1. Admin Bypass
+      if (req.user.role === "Admin") return next();
+
+      // 2. Lead Instructor Bypass
+      if (bootcamp.leadInstructor?.toString() === userId) return next();
+
+      // 3. Student Check (if allowed)
+      if (allowStudent) {
         const isStudent = await EnrollmentModel.findOne({
           bootcamp: bootcampId,
           student: userId,
         });
-        if (isStudent) {
-          return next();
-        }
-      }
-      // instructor bypass
-      if (
-        bootcamp.leadInstructor &&
-        bootcamp.leadInstructor.toString() === userId
-      ) {
-        return next();
+        if (isStudent) return next();
       }
 
-      // Helper check
+      // 4. Helper/Staff Check
       const member = await BootcampHelperModel.findOne({
         bootcamp_id: bootcampId,
         user: userId,
@@ -57,11 +55,14 @@ export const requirePermission = (permission, student = false) => {
       if (!member) {
         return res.status(403).json({
           error: "Forbidden",
-          message: "You are not part of this bootcamp.",
+          message: "You do not have access to this bootcamp.",
         });
       }
 
-      // check permission
+      // 5. Specific Permission Check
+      // If no specific permission string was provided, being a member is enough
+      if (!permission) return next();
+
       if (!member.permissions?.[permission]) {
         return res.status(403).json({
           error: "Forbidden",

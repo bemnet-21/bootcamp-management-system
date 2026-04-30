@@ -49,7 +49,7 @@ export const requirePermission = (options = {}, student = false) => {
 
       // 4. Helper/Staff Check
       const member = await BootcampHelperModel.findOne({
-        bootcamp_id: bootcampId,
+        bootcamp: bootcampId,
         user: userId,
       });
 

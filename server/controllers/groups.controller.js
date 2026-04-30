@@ -9,6 +9,7 @@ import EnrollmentModel from "../models/Enrollment.model.js";
 const createGroupSchema = z.object({
   name: z.string().min(2, "group name is required").trim(),
   description: z.string().optional(),
+  members: z.array(z.string()).optional(),
 });
 
 const addGroupMembersSchema = z.object({
@@ -34,6 +35,53 @@ export const createGroup = async (req, res) => {
       bootcamp: bootcampId,
       description: validatedData.description,
     });
+
+    // Add members if provided
+    if (validatedData.members && validatedData.members.length > 0) {
+      // Verify all members are enrolled in the bootcamp
+      const enrollments = await EnrollmentModel.find({
+        bootcamp: bootcampId,
+        student: { $in: validatedData.members },
+      });
+
+      const enrolledIds = enrollments.map((e) => e.student.toString());
+      const notEnrolled = validatedData.members.filter(
+        (id) => !enrolledIds.includes(id.toString()),
+      );
+
+      if (notEnrolled.length > 0) {
+        // Delete the group if members can't be added
+        await GroupModel.findByIdAndDelete(group._id);
+        return res.status(403).json({
+          error: "Enrollment Error",
+          message: "Some users are not part of the bootcamp",
+        });
+      }
+
+      // Check if any members already belong to another group
+      const existing = await GroupMemberModel.find({
+        bootcamp: bootcampId,
+        user: { $in: validatedData.members },
+      });
+
+      if (existing.length > 0) {
+        // Delete the group if members are already in another group
+        await GroupModel.findByIdAndDelete(group._id);
+        return res.status(400).json({
+          error: "Validation Error",
+          message: "Some users already belong to a group in this bootcamp",
+        });
+      }
+
+      // Add all members to the group
+      const memberDocs = validatedData.members.map((userId) => ({
+        group: group._id,
+        user: userId,
+        bootcamp: bootcampId,
+      }));
+
+      await GroupMemberModel.insertMany(memberDocs);
+    }
 
     return res.status(201).json({
       success: true,
@@ -385,6 +433,52 @@ export const updateGroup = async (req, res) => {
       success: true,
       data: updatedGroup,
       message: "Group updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+};
+
+export const getAvailableStudents = async (req, res) => {
+  const { bootcampId } = req.params;
+
+  try {
+    // Get all enrolled students in this bootcamp
+    const enrollments = await EnrollmentModel.find({
+      bootcamp: bootcampId,
+    }).populate("student", "firstName lastName email");
+
+    if (!enrollments || enrollments.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "No enrolled students found",
+      });
+    }
+
+    // Get all students who are already in groups in this bootcamp
+    const studentsInGroups = await GroupMemberModel.find({
+      bootcamp: bootcampId,
+    }).distinct("user");
+
+    // Convert to Set for faster lookup
+    const studentsInGroupsSet = new Set(
+      studentsInGroups.map((id) => id.toString())
+    );
+
+    // Filter out students who are already in groups
+    const availableStudents = enrollments.filter(
+      (enrollment) =>
+        !studentsInGroupsSet.has(enrollment.student._id.toString())
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: availableStudents,
+      message: "Available students fetched successfully",
     });
   } catch (error) {
     return res.status(500).json({

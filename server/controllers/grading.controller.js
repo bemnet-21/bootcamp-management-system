@@ -1,26 +1,33 @@
 import z from "zod"
 import SubmissionModel from "../models/Submission.model.js"
+import TaskModel from "../models/Task.model.js"
 
 export const pendingSubmissions = async (req, res) => {
     try {
-        const pendings = await SubmissionModel.find({ status: "Pending" })
-                                            .populate("task")
-                                            .populate("student", "firstName lastName email")
-        if(pendings.length === 0) return res.status(200).json({ 
-            message: "No pending submissions found.",
-            pendings: []
-         })
+        const { bootcampId } = req.params;
 
-         res.status(200).json({
-            message: "Pending submissions retrieved successfully.",
+        // Get all tasks for this bootcamp
+        const tasks = await TaskModel.find({ bootcamp: bootcampId }).select("_id");
+        const taskIds = tasks.map(task => task._id);
+
+        const pendings = await SubmissionModel.find({
+            task: { $in: taskIds },
+            status: "Pending"
+        })
+        .populate("task", "title deadline submissionType maxScore")
+        .populate("student", "firstName lastName email")
+        .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            message: pendings.length === 0 ? "No pending submissions found." : "Pending submissions retrieved successfully.",
             pendings
-         })
+        })
 
     } catch(err) {
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal Server Error",
             message: err.message
-         })
+        })
     }
 }
 

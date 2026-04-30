@@ -11,8 +11,8 @@ const createTaskSchema = z.object({
     deadline: z.string().refine(dateStr => !isNaN(Date.parse(dateStr)), {
         message: "Invalid date format"
     }),
-    submissionType: z.enum(["File", "GitHub", "Other"], {
-        errorMap: () => ({ message: "Submission type must be one of: File, GitHub, Other" })
+    submissionType: z.enum(["File", "Link", "Both"], {
+        errorMap: () => ({ message: "Submission type must be one of: File, Link, Both" })
     }),
     maxScore: z.number().optional()
 })
@@ -26,8 +26,8 @@ export const createTask = async (req, res) => {
         maxScore: req.body.maxScore
     })
     if(!parseResult.success) {
-        const errors = parseResult.error.errors.map(err => err.message)
-        return res.status(400).json({ 
+        const errors = parseResult.error?.errors?.map(err => err.message) || ['Validation failed']
+        return res.status(400).json({
             error: "Validation Error",
             message: errors.join(", ")
         })
@@ -80,14 +80,12 @@ export const getAllTasks = async (req, res) => {
         const { bootcampId } = parseResult.data
         const bootcamp = await BootcampModel.findById(bootcampId)
         if(!bootcamp) return res.status(404).json({ error: "Bootcamp not found" })
-        
+
 
         const tasks = await TaskModel.find({ bootcamp: bootcampId }).populate("instructor", "firstName lastName email")
-        if(tasks.length === 0) return res.status(200).json({ message: "No tasks found for this bootcamp", tasks: [] })
-        res.status(200).json({ tasks })
 
         res.status(200).json({
-            message: "Tasks retrieved successfully",
+            message: tasks.length === 0 ? "No tasks found for this bootcamp" : "Tasks retrieved successfully",
             tasks
         })
 
@@ -144,8 +142,8 @@ const updateTaskSchema = z.object({
     deadline: z.string().refine(dateStr => !isNaN(Date.parse(dateStr)), {
         message: "Invalid date format"
      }).optional(),
-    submissionType: z.enum(["File", "GitHub", "Other"], {
-        errorMap: () => ({ message: "Submission type must be one of: File, GitHub, Other" })
+    submissionType: z.enum(["File", "Link", "Both"], {
+        errorMap: () => ({ message: "Submission type must be one of: File, Link, Both" })
     }).optional(),
     bootcampId: z.string().min(1, "Bootcamp ID is required"),
     taskId: z.string().min(1, "Task ID is required")

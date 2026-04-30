@@ -6,6 +6,7 @@ import {
   updateDivisionHandler,
   getDivisionDetail,
   deleteDivisionHandler,
+  reactivateDivisionHandler,
 } from "../controllers/division.controller.js";
 import { restrictTo } from "../middlewares/checkRole.js";
 import protect from "../middlewares/auth.js";
@@ -181,5 +182,7 @@ router.get(
   getDivisionStatisticsHandler,
 );
 router.delete("/:id", restrictTo("Admin"), deleteDivisionHandler);
+
+router.patch("/:id/reactivate", restrictTo("Admin"), reactivateDivisionHandler);
 
 export default router;

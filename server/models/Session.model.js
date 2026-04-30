@@ -35,7 +35,7 @@ const sessionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["Scheduled", "Cancelled", "Completed"],
+      enum: ["Scheduled", "In Progress", "Cancelled", "Completed"],
       default: "Scheduled",
     },
   },

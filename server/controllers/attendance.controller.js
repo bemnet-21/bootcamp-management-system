@@ -1,9 +1,14 @@
 import SessionModel from "../models/Session.model.js"
 import AttendanceModel from "../models/Attendance.model.js"
 import BootcampModel from "../models/Bootcamp.model.js";
+import AttendanceQRModel from "../models/AttendanceQR.model.js";
+import AttendancePermissionRequestModel from "../models/AttendancePermissionRequest.model.js";
+import EnrollmentModel from "../models/Enrollment.model.js";
 
 import z from "zod"
 import ExcelJS from 'exceljs';
+import { v4 as uuidv4 } from 'uuid';
+import QRCode from 'qrcode';
 
 
 
@@ -362,8 +367,607 @@ export const getPersonalAttendancePercentage = async (req, res) => {
         })
 
     } catch(error) {
-        console.error('Error calculating attendance percentage:', error)    
+        console.error('Error calculating attendance percentage:', error)
         res.status(500).json({ message: 'Internal Server Error' })
     }
 }
 
+// Generate QR code for session attendance
+const generateQRSchema = z.object({
+    sessionId: z.string().min(1, "Session ID is required")
+})
+
+export const generateQRForSession = async (req, res) => {
+    const parseResult = generateQRSchema.safeParse(req.params);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { sessionId } = parseResult.data;
+    const userId = req.user.id;
+
+    try {
+        const session = await SessionModel.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ error: "Not Found", message: "Session not found" });
+        }
+
+        // Check if session is "In Progress"
+        if (session.status !== "In Progress") {
+            return res.status(400).json({
+                error: "Bad Request",
+                message: "QR code can only be generated for sessions that are in progress. Please start the session first."
+            });
+        }
+
+        // Check if QR already exists and is active
+        const existingQR = await AttendanceQRModel.findOne({ session: sessionId, isActive: true });
+        if (existingQR) {
+            // Generate QR code image
+            const qrCodeDataURL = await QRCode.toDataURL(existingQR.qrToken);
+            return res.status(200).json({
+                message: "Active QR code already exists",
+                qrToken: existingQR.qrToken,
+                qrCodeImage: qrCodeDataURL,
+                expiresAt: existingQR.expiresAt,
+                isActive: existingQR.isActive
+            });
+        }
+
+        // Generate new QR token
+        const qrToken = uuidv4();
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+        const qrRecord = await AttendanceQRModel.create({
+            session: sessionId,
+            bootcamp: session.bootcamp,
+            qrToken,
+            isActive: true,
+            expiresAt,
+            createdBy: userId
+        });
+
+        // Generate QR code image
+        const qrCodeDataURL = await QRCode.toDataURL(qrToken);
+
+        return res.status(201).json({
+            message: "QR code generated successfully",
+            qrToken: qrRecord.qrToken,
+            qrCodeImage: qrCodeDataURL,
+            expiresAt: qrRecord.expiresAt,
+            isActive: qrRecord.isActive
+        });
+
+    } catch (error) {
+        console.error('Error generating QR code:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Deactivate QR code
+export const deactivateQR = async (req, res) => {
+    const parseResult = generateQRSchema.safeParse(req.params);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { sessionId } = parseResult.data;
+
+    try {
+        const qrRecord = await AttendanceQRModel.findOne({ session: sessionId, isActive: true });
+        if (!qrRecord) {
+            return res.status(404).json({ error: "Not Found", message: "No active QR code found for this session" });
+        }
+
+        qrRecord.isActive = false;
+        await qrRecord.save();
+
+        return res.status(200).json({
+            message: "QR code deactivated successfully"
+        });
+
+    } catch (error) {
+        console.error('Error deactivating QR code:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Scan QR and mark attendance
+const scanQRSchema = z.object({
+    qrToken: z.string().min(1, "QR token is required")
+})
+
+export const scanQRAndMarkAttendance = async (req, res) => {
+    const parseResult = scanQRSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { qrToken } = parseResult.data;
+    const studentId = req.user.id;
+
+    try {
+        // Find QR record
+        const qrRecord = await AttendanceQRModel.findOne({ qrToken }).populate('session');
+        if (!qrRecord) {
+            return res.status(404).json({ error: "Not Found", message: "Invalid QR code" });
+        }
+
+        // Check if QR is active
+        if (!qrRecord.isActive) {
+            return res.status(400).json({ error: "Invalid QR", message: "This QR code has been deactivated" });
+        }
+
+        // Check if QR is expired
+        if (new Date() > qrRecord.expiresAt) {
+            return res.status(400).json({ error: "Expired QR", message: "This QR code has expired" });
+        }
+
+        // Check if student is enrolled in the bootcamp
+        const enrollment = await EnrollmentModel.findOne({
+            bootcamp: qrRecord.bootcamp,
+            student: studentId,
+            status: 'active'
+        });
+
+        if (!enrollment) {
+            return res.status(403).json({ error: "Forbidden", message: "You are not enrolled in this bootcamp" });
+        }
+
+        // Check if attendance already marked
+        const existingAttendance = await AttendanceModel.findOne({
+            session: qrRecord.session._id,
+            student: studentId
+        });
+
+        if (existingAttendance) {
+            return res.status(400).json({
+                error: "Already Marked",
+                message: "Your attendance has already been marked for this session",
+                status: existingAttendance.status
+            });
+        }
+
+        // Determine status (Present or Late)
+        const session = qrRecord.session;
+        const minsPastStart = (Date.now() - new Date(session.startTime)) / (1000 * 60);
+        const status = minsPastStart > 10 ? 'Late' : 'Present';
+
+        // Mark attendance
+        const attendance = await AttendanceModel.create({
+            session: session._id,
+            student: studentId,
+            status,
+            markedBy: studentId,
+            note: 'Marked via QR scan'
+        });
+
+        return res.status(201).json({
+            message: `Attendance marked as ${status}`,
+            attendance: {
+                session: {
+                    _id: session._id,
+                    title: session.title,
+                    startTime: session.startTime
+                },
+                status,
+                markedAt: attendance.createdAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Error scanning QR code:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Request attendance permission
+const requestPermissionSchema = z.object({
+    sessionId: z.string().min(1, "Session ID is required"),
+    reason: z.string().min(10, "Reason must be at least 10 characters")
+})
+
+export const requestAttendancePermission = async (req, res) => {
+    const parseResult = requestPermissionSchema.safeParse({
+        sessionId: req.params.sessionId,
+        reason: req.body.reason
+    });
+
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { sessionId, reason } = parseResult.data;
+    const studentId = req.user.id;
+
+    try {
+        const session = await SessionModel.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ error: "Not Found", message: "Session not found" });
+        }
+
+        // Check if student is enrolled
+        const enrollment = await EnrollmentModel.findOne({
+            bootcamp: session.bootcamp,
+            student: studentId,
+            status: 'active'
+        });
+
+        if (!enrollment) {
+            return res.status(403).json({ error: "Forbidden", message: "You are not enrolled in this bootcamp" });
+        }
+
+        // Check if request already exists
+        const existingRequest = await AttendancePermissionRequestModel.findOne({
+            session: sessionId,
+            student: studentId
+        });
+
+        if (existingRequest) {
+            return res.status(400).json({
+                error: "Request Exists",
+                message: `You already have a ${existingRequest.status.toLowerCase()} permission request for this session`
+            });
+        }
+
+        // Create permission request
+        const permissionRequest = await AttendancePermissionRequestModel.create({
+            session: sessionId,
+            student: studentId,
+            bootcamp: session.bootcamp,
+            reason
+        });
+
+        return res.status(201).json({
+            message: "Permission request submitted successfully",
+            request: permissionRequest
+        });
+
+    } catch (error) {
+        console.error('Error requesting permission:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Remove/unmark attendance
+const removeAttendanceSchema = z.object({
+    sessionId: z.string().min(1),
+    studentId: z.string().min(1)
+})
+
+export const removeAttendance = async (req, res) => {
+    const parsedData = removeAttendanceSchema.safeParse(req.params);
+    if (!parsedData.success) {
+        return res.status(400).json({ message: 'Invalid data', errors: parsedData.error.errors });
+    }
+
+    const { sessionId, studentId } = parsedData.data;
+
+    try {
+        const session = await SessionModel.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ message: 'Session not found' });
+        }
+
+        const deleted = await AttendanceModel.findOneAndDelete({
+            session: sessionId,
+            student: studentId
+        });
+
+        if (!deleted) {
+            return res.status(404).json({ message: 'Attendance record not found' });
+        }
+
+        res.status(200).json({ message: 'Attendance removed successfully' });
+    } catch (error) {
+        console.error('Error removing attendance:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+}
+
+// Get permission requests for bootcamp
+const getPermissionRequestsSchema = z.object({
+    bootcampId: z.string().min(1, "Bootcamp ID is required")
+})
+
+export const getPermissionRequests = async (req, res) => {
+    const parseResult = getPermissionRequestsSchema.safeParse(req.params);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { bootcampId } = parseResult.data;
+    const status = req.query.status || 'Pending';
+
+    try {
+        const requests = await AttendancePermissionRequestModel.find({
+            bootcamp: bootcampId,
+            status
+        })
+            .populate('student', 'firstName lastName email')
+            .populate('session', 'title startTime endTime')
+            .populate('reviewedBy', 'firstName lastName')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            message: "Permission requests retrieved successfully",
+            requests
+        });
+
+    } catch (error) {
+        console.error('Error getting permission requests:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Review permission request
+const reviewPermissionSchema = z.object({
+    requestId: z.string().min(1, "Request ID is required"),
+    action: z.enum(['approve', 'reject'], "Action must be 'approve' or 'reject'"),
+    note: z.string().optional()
+})
+
+export const reviewPermissionRequest = async (req, res) => {
+    const parseResult = reviewPermissionSchema.safeParse({
+        requestId: req.params.requestId,
+        action: req.body.action,
+        note: req.body.note
+    });
+
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { requestId, action, note } = parseResult.data;
+    const reviewerId = req.user.id;
+
+    try {
+        const request = await AttendancePermissionRequestModel.findById(requestId);
+        if (!request) {
+            return res.status(404).json({ error: "Not Found", message: "Permission request not found" });
+        }
+
+        if (request.status !== 'Pending') {
+            return res.status(400).json({
+                error: "Invalid Status",
+                message: `This request has already been ${request.status.toLowerCase()}`
+            });
+        }
+
+        // Update request status
+        request.status = action === 'approve' ? 'Approved' : 'Rejected';
+        request.reviewedBy = reviewerId;
+        request.reviewNote = note || '';
+        await request.save();
+
+        // Mark attendance based on action
+        const attendanceStatus = action === 'approve' ? 'Excused' : 'Absent';
+
+        await AttendanceModel.findOneAndUpdate(
+            { session: request.session, student: request.student },
+            {
+                status: attendanceStatus,
+                note: note || `Permission ${action}ed`,
+                markedBy: reviewerId
+            },
+            { upsert: true, new: true }
+        );
+
+        return res.status(200).json({
+            message: `Permission request ${action}ed successfully`,
+            request
+        });
+
+    } catch (error) {
+        console.error('Error reviewing permission request:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Get live attendance for a session
+const getLiveAttendanceSchema = z.object({
+    sessionId: z.string().min(1, "Session ID is required")
+})
+
+export const getLiveAttendance = async (req, res) => {
+    const parseResult = getLiveAttendanceSchema.safeParse(req.params);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { sessionId } = parseResult.data;
+
+    try {
+        const session = await SessionModel.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ error: "Not Found", message: "Session not found" });
+        }
+
+        // Get all enrolled students
+        const enrollments = await EnrollmentModel.find({
+            bootcamp: session.bootcamp,
+            status: 'active'
+        }).populate('student', 'firstName lastName email');
+
+        // Get attendance records for this session
+        const attendanceRecords = await AttendanceModel.find({ session: sessionId })
+            .populate('student', 'firstName lastName email')
+            .populate('markedBy', 'firstName lastName');
+
+        // Get approved permission requests
+        const approvedPermissions = await AttendancePermissionRequestModel.find({
+            session: sessionId,
+            status: 'Approved'
+        }).select('student');
+
+        const approvedStudentIds = approvedPermissions.map(p => p.student.toString());
+
+        // Build response with all students and their status (filter out null students)
+        const liveAttendance = enrollments
+            .filter(enrollment => enrollment.student != null)
+            .map(enrollment => {
+                const studentId = enrollment.student._id.toString();
+                const attendanceRecord = attendanceRecords.find(
+                    a => a.student._id.toString() === studentId
+                );
+
+                return {
+                    student: {
+                        _id: enrollment.student._id,
+                        firstName: enrollment.student.firstName,
+                        lastName: enrollment.student.lastName,
+                        email: enrollment.student.email
+                    },
+                    status: attendanceRecord ? attendanceRecord.status : 'Not Marked',
+                    markedAt: attendanceRecord ? attendanceRecord.markedAt : null,
+                    hasApprovedPermission: approvedStudentIds.includes(studentId)
+                };
+            });
+
+        const stats = {
+            total: enrollments.length,
+            present: attendanceRecords.filter(a => a.status === 'Present').length,
+            late: attendanceRecords.filter(a => a.status === 'Late').length,
+            excused: attendanceRecords.filter(a => a.status === 'Excused').length,
+            notMarked: enrollments.length - attendanceRecords.length
+        };
+
+        return res.status(200).json({
+            message: "Live attendance retrieved successfully",
+            attendance: liveAttendance,
+            stats
+        });
+
+    } catch (error) {
+        console.error('Error getting live attendance:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}
+
+// Finalize attendance and end session
+const finalizeAttendanceSchema = z.object({
+    sessionId: z.string().min(1, "Session ID is required")
+})
+
+export const finalizeAttendance = async (req, res) => {
+    const parseResult = finalizeAttendanceSchema.safeParse(req.params);
+    if (!parseResult.success) {
+        return res.status(400).json({
+            error: "Validation Error",
+            message: parseResult.error.errors.map(e => e.message).join(", ")
+        });
+    }
+
+    const { sessionId } = parseResult.data;
+    const userId = req.user.id;
+
+    try {
+        const session = await SessionModel.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ error: "Not Found", message: "Session not found" });
+        }
+
+        // Get all enrolled students
+        const enrollments = await EnrollmentModel.find({
+            bootcamp: session.bootcamp,
+            status: 'active'
+        });
+
+        // Get existing attendance records
+        const existingAttendance = await AttendanceModel.find({ session: sessionId });
+        const markedStudentIds = existingAttendance.map(a => a.student.toString());
+
+        // Get approved permission requests
+        const approvedPermissions = await AttendancePermissionRequestModel.find({
+            session: sessionId,
+            status: 'Approved'
+        });
+        const approvedStudentIds = approvedPermissions.map(p => p.student.toString());
+
+        // Mark remaining students
+        const bulkOps = [];
+        for (const enrollment of enrollments) {
+            const studentId = enrollment.student.toString();
+
+            // Skip if already marked (Present/Late from scanning or manual add)
+            if (markedStudentIds.includes(studentId)) {
+                continue;
+            }
+
+            // Mark as Excused if they have approved permission
+            if (approvedStudentIds.includes(studentId)) {
+                bulkOps.push({
+                    updateOne: {
+                        filter: { session: sessionId, student: studentId },
+                        update: {
+                            status: 'Excused',
+                            note: 'Approved permission request',
+                            markedBy: userId,
+                            markedAt: new Date()
+                        },
+                        upsert: true
+                    }
+                });
+            } else {
+                // Mark as Absent
+                bulkOps.push({
+                    updateOne: {
+                        filter: { session: sessionId, student: studentId },
+                        update: {
+                            status: 'Absent',
+                            note: 'Did not attend',
+                            markedBy: userId,
+                            markedAt: new Date()
+                        },
+                        upsert: true
+                    }
+                });
+            }
+        }
+
+        if (bulkOps.length > 0) {
+            await AttendanceModel.bulkWrite(bulkOps);
+        }
+
+        // Deactivate QR code
+        await AttendanceQRModel.updateMany(
+            { session: sessionId, isActive: true },
+            { isActive: false }
+        );
+
+        // Update session status to Completed
+        session.status = 'Completed';
+        await session.save();
+
+        return res.status(200).json({
+            message: "Attendance finalized successfully",
+            studentsMarked: bulkOps.length,
+            sessionStatus: session.status
+        });
+
+    } catch (error) {
+        console.error('Error finalizing attendance:', error);
+        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+    }
+}

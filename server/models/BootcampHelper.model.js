@@ -16,7 +16,7 @@ const permissionSchema = new mongoose.Schema(
 );
 const bootcampMemberSchema = new mongoose.Schema(
   {
-    bootcamp_id: {
+    bootcamp: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bootcamp",
       required: true,
@@ -33,6 +33,6 @@ const bootcampMemberSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-bootcampMemberSchema.index({ bootcamp_id: 1, user: 1 }, { unique: true });
+bootcampMemberSchema.index({ bootcamp: 1, user: 1 }, { unique: true });
 
 export default mongoose.model("BootcampMember", bootcampMemberSchema);

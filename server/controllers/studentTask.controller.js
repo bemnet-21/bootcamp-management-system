@@ -1,34 +1,64 @@
 import z from "zod"
 import BootcampModel from "../models/Bootcamp.model.js"
+import EnrollmentModel from "../models/Enrollment.model.js"
 import TaskModel from "../models/Task.model.js"
 import SubmissionModel from "../models/Submission.model.js"
 
 export const getAssignedTasks = async (req, res) => {
     try {
-        const bootcamps = await BootcampModel.find({ students: req.user.id }).select("_id")
-        if(bootcamps.length === 0) return res.json({ message:"Not registered in any bootcamp" })
-        const bootcampIds = bootcamps.map(bootcamp => bootcamp._id)
+        // Find all active enrollments for the current user
+        const enrollments = await EnrollmentModel.find({ student: req.user.id, status: "active" }).select("bootcamp")
+        if (enrollments.length === 0) {
+            return res.json({ message: "Not registered in any bootcamp" })
+        }
+        const bootcampIds = enrollments.map(e => e.bootcamp)
 
         const tasks = await TaskModel.find({ bootcamp: { $in: bootcampIds } })
-                                     .populate("bootcamp", "name")
-                                     .populate("instructor", "firstName lastName email")
-                                     .sort({ deadline: -1 })
-                                     .lean()
-        if(tasks.length === 0) return res.status(200).json({ 
-            message: "No tasks assigned",
-            tasks: []
-         })
+            .populate("bootcamp", "name")
+            .populate("instructor", "firstName lastName email")
+            .sort({ deadline: -1 })
+            .lean()
 
-         res.status(200).json({
+        if (tasks.length === 0) {
+            return res.status(200).json({
+                message: "No tasks assigned",
+                tasks: []
+            })
+        }
+
+        // Get all submissions for these tasks by the current student
+        const taskIds = tasks.map(task => task._id)
+        const submissions = await SubmissionModel.find({
+            task: { $in: taskIds },
+            student: req.user.id
+        }).select("task status createdAt updatedAt")
+        // Map taskId to submission
+        const submissionMap = new Map()
+        submissions.forEach(sub => {
+            submissionMap.set(sub.task.toString(), sub)
+        })
+
+        // Attach submission info to each task
+        const tasksWithSubmission = tasks.map(task => {
+            const submission = submissionMap.get(task._id.toString())
+            return {
+                ...task,
+                hasSubmitted: !!submission,
+                submissionStatus: submission ? submission.status : null,
+                submittedAt: submission ? submission.createdAt : null,
+                lastUpdated: submission ? submission.updatedAt : null
+            }
+        })
+
+        res.status(200).json({
             message: "Assigned tasks retrieved successfully",
-            tasks
-         })
-
-    } catch(err) {
-        res.status(500).json({ 
+            tasks: tasksWithSubmission
+        })
+    } catch (err) {
+        res.status(500).json({
             error: "Internal Server Error",
             message: err.message
-         })
+        })
     }
 }
 

@@ -4,11 +4,11 @@ import BootcampModel from "../models/Bootcamp.model.js";
 import BootcampHelperModel from "../models/BootcampHelper.model.js";
 import EnrollmentModel from "../models/Enrollment.model.js";
 
-export const requirePermission = (options = {}) => {
+export const requirePermission = (options = {}, student = false) => {
   // Support both: requirePermission("edit_progress") 
   // and: requirePermission({ permission: "edit_progress", student: true })
   const permission = typeof options === 'string' ? options : options.permission;
-  const allowStudent = typeof options === 'object' ? options.student : false;
+  const allowStudent = typeof options === 'object' ? options.student : student;
 
   return async (req, res, next) => {
     // Ensure bootcampId exists in params (requires mergeParams: true in router)
@@ -42,6 +42,7 @@ export const requirePermission = (options = {}) => {
         const isStudent = await EnrollmentModel.findOne({
           bootcamp: bootcampId,
           student: userId,
+          status: "active"
         });
         if (isStudent) return next();
       }

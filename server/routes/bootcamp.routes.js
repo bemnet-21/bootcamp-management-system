@@ -1,5 +1,5 @@
 import express from "express";
-import { getBootcampById } from "../controllers/bootcamp.controller.js";
+import { getBootcampById, getStudentBootcamps } from "../controllers/bootcamp.controller.js";
 import protect from "../middlewares/auth.js";
 
 const router = express.Router({ mergeParams: true });
@@ -28,6 +28,7 @@ const router = express.Router({ mergeParams: true });
  *       404:
  *         description: Bootcamp not found
  */
-router.get("", protect, getBootcampById);
+router.get("/", protect, getStudentBootcamps)
+router.get("/:bootcampId", protect, getBootcampById);
 
 export default router;

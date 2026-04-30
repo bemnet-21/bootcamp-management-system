@@ -1,3 +1,5 @@
+
+
 import Bootcamp from "../models/Bootcamp.model.js";
 import BootcampHelper from "../models/BootcampHelper.model.js";
 import Enrollment from "../models/Enrollment.model.js";
@@ -52,5 +54,34 @@ export const getBootcampById = async (req, res, next) => {
   } catch (err) {
     console.error("Error in getBootcampById:", err);
     return next(err);
+  }
+};
+
+
+// Get all bootcamps a student is enrolled in
+export const getStudentBootcamps = async (req, res) => {
+  try {
+    // Find all active enrollments for the current user
+    const enrollments = await Enrollment.find({ student: req.user.id, status: "active" }).select("bootcamp");
+    if (!enrollments.length) {
+      return res.status(200).json({
+        message: "Student is not enrolled in any bootcamp",
+        bootcamps: []
+      });
+    }
+    const bootcampIds = enrollments.map(e => e.bootcamp);
+    const bootcamps = await Bootcamp.find({ _id: { $in: bootcampIds } })
+      .populate("division_id", "name")
+      .populate("leadInstructor", "firstName lastName email")
+      .lean();
+    res.status(200).json({
+      message: "Student bootcamps retrieved successfully",
+      bootcamps
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: err.message
+    });
   }
 };

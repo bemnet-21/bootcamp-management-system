@@ -135,6 +135,22 @@ export const addStudentsInBulk = async (req, res) => {
       ordered: false,
     });
 
+    // Fetch bootcamp details once
+    const bootcamp = await BootcampModel.findById(bootcampId).lean();
+    if (bootcamp) {
+      // Fetch all student users in bulk
+      const users = await UserModel.find({ _id: { $in: students } }).lean();
+      // Send notification to each student
+      await Promise.all(users.map(user =>
+        sendNotification({
+          userId: user._id,
+          title: 'Bootcamp Invitation',
+          message: `You have been invited to join the bootcamp: ${bootcamp.name}`,
+          type: 'BOOTCAMP_INVITE',
+        })
+      ));
+    }
+
     return res.status(200).json({
       success: true,
       message: "Bulk enrollment completed",
@@ -227,6 +243,19 @@ export const permanentlyRemoveStudent = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Enrollment not found",
+      });
+    }
+
+    // Fetch bootcamp and student details for notification
+    const bootcamp = await BootcampModel.findById(bootcampId).lean();
+    const studentUser = await UserModel.findById(studentId).lean();
+
+    if (bootcamp && studentUser) {
+      await sendNotification({
+        userId: studentUser._id,
+        title: `Removed from Bootcamp`,
+        message: `You have been removed from the bootcamp: ${bootcamp.name}`,
+        type: "BOOTCAMP_EXPELLED",
       });
     }
 

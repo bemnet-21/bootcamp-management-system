@@ -1,7 +1,39 @@
 import express from 'express'
 import protect from '../middlewares/auth.js';
 import { checkInstructor } from '../middlewares/checkInstructor.js';
-import { getFeedbackPerBootcamp, getFeedbackPerSession, instructorFeedbackStats } from '../controllers/instructorFeedback.controller.js';
+import { getFeedbackPerBootcamp, getFeedbackPerSession, instructorFeedbackStats, requestSessionFeedback } from '../controllers/instructorFeedback.controller.js';
+/**
+ * @swagger
+ * /instructor/bootcamps/{bootcampId}/sessions/{sessionId}/request-feedback:
+ *   post:
+ *     summary: Request feedback from students for a session
+ *     tags: [Instructor Feedback]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The bootcamp ID
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The session ID
+ *     responses:
+ *       200:
+ *         description: Feedback request sent to students
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Session not found in this bootcamp
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/sessions/:sessionId/request-feedback', protect, checkInstructor, requestSessionFeedback);
 
 const router = express.Router({ mergeParams: true });
 

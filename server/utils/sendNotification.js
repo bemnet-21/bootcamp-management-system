@@ -13,8 +13,20 @@ import transporter from './mailer.js';
  * @param {string} options.type - Notification type (e.g., 'BOOTCAMP_INVITE')
  * @returns {Promise<Object|null>} The created notification document or null if none sent
  */
+
+/**
+ * Utility to send a notification to a user, respecting their preferences.
+ * @param {Object} options
+ * @param {string|ObjectId} options.userId - The user to notify
+ * @param {string} options.title - Notification title
+ * @param {string} options.message - Notification message
+ * @param {string} options.type - Notification type (e.g., 'BOOTCAMP_INVITE', 'BOOTCAMP_EXPELLED')
+ * @param {string} [options.link] - Optional link for the notification
+ * @returns {Promise<Object|null>} The created notification document or null if none sent
+ */
 export async function sendNotification({ userId, title, message, type }) {
-  const link =  process.env.DEPLOYED_FRONTEND_URL
+  
+  const link = process.env.DEPLOYED_FRONTEND_URL
   if (!userId || !title || !message || !type) {
     throw new Error('Missing required notification fields');
   }
@@ -29,6 +41,7 @@ export async function sendNotification({ userId, title, message, type }) {
   if (typeKey.endsWith('_reminder')) typeKey = typeKey.replace('_reminder', '');
   if (typeKey.endsWith('_posted')) typeKey = typeKey.replace('_posted', '');
   if (typeKey.endsWith('_request')) typeKey = typeKey.replace('_request', '');
+  if (typeKey.endsWith('_expelled')) typeKey = typeKey.replace('_expelled', '');
   const typeAllowed = prefs.types?.[typeKey] !== false;
 
   let notification = null;
@@ -40,10 +53,9 @@ export async function sendNotification({ userId, title, message, type }) {
       title,
       message,
       type,
-      link,
+      link
     });
   }
-
 
   // Email notification with improved HTML UI
   if (prefs.email && typeAllowed) {

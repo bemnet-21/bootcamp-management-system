@@ -3,6 +3,70 @@ import SessionModel from "../models/Session.model.js";
 import FeedbackModel from "../models/Feedback.model.js";
 import BootcampModel from "../models/Bootcamp.model.js";
 import BootcampHelper from "../models/BootcampHelper.model.js";
+import AttendanceModel from "../models/Attendance.model.js";
+import UserModel from "../models/User.model.js";
+import { sendNotification } from "../utils/sendNotification.js";
+
+
+// Instructor requests feedback from students for a session
+const requestFeedbackSchema = z.object({
+  bootcampId: z.string().min(1, "Bootcamp ID is required"),
+  sessionId: z.string().min(1, "Session ID is required"),
+});
+export const requestSessionFeedback = async (req, res) => {
+  const parseResult = requestFeedbackSchema.safeParse(req.params);
+  if (!parseResult.success) {
+    const errors = parseResult.error.errors.map(e => e.message).join(", ");
+    return res.status(400).json({
+      error: "Validation Error",
+      message: errors,
+    });
+  }
+  try {
+    const { bootcampId, sessionId } = parseResult.data;
+    // Validate session and bootcamp
+    const session = await SessionModel.findById(sessionId).lean();
+    if (!session || session.bootcamp.toString() !== bootcampId) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "Session not found in this bootcamp",
+      });
+    }
+    // Get all students who attended the session (Present or Late)
+    const attendance = await AttendanceModel.find({
+      session: sessionId,
+      status: { $in: ["Present", "Late"] },
+    }).lean();
+    if (!attendance.length) {
+      return res.status(200).json({
+        message: "No students attended this session.",
+      });
+    }
+    // Get student user details
+    const studentIds = attendance.map(a => a.student);
+    const students = await UserModel.find({ _id: { $in: studentIds } }).lean();
+    // Send notification to each student
+    await Promise.all(students.map(student =>
+      sendNotification({
+        userId: student._id,
+        title: `Feedback Requested`,
+        message: `Please submit your feedback for the session: ${session.title}`,
+        type: "FEEDBACK_REQUEST",
+      })
+    ));
+    return res.status(200).json({
+      message: "Feedback request sent to all attending students.",
+      count: students.length,
+    });
+  } catch (err) {
+    console.error("Error requesting feedback:", err);
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: err.message,
+    });
+  }
+};
+
 
 // Get all feedback for a session (instructor only)
 export const getSessionFeedback = async (req, res) => {

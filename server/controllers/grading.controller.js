@@ -1,6 +1,9 @@
 import z from "zod"
 import SubmissionModel from "../models/Submission.model.js"
 import TaskModel from "../models/Task.model.js"
+import { sendNotification } from "../utils/sendNotification.js";
+import UserModel from "../models/User.model.js";
+import BootcampModel from "../models/Bootcamp.model.js";
 
 export const pendingSubmissions = async (req, res) => {
     try {
@@ -91,6 +94,8 @@ export const gradeSubmission = async (req, res) => {
     try {
         const { submissionId, score, instructorFeedback } = parseResult.data
         const submission = await SubmissionModel.findById(submissionId)
+            .populate("student", "email firstName lastName")
+            .populate("task", "title bootcamp");
         if(!submission) {
             return res.status(404).json({
                 error: "Not Found",
@@ -102,6 +107,21 @@ export const gradeSubmission = async (req, res) => {
         submission.instructorFeedback = instructorFeedback
         submission.status = "Graded"
         await submission.save()
+
+        // Notify student
+        const student = submission.student;
+        const task = submission.task;
+        let bootcampName = "";
+        if (task && task.bootcamp) {
+            const bootcamp = await BootcampModel.findById(task.bootcamp).lean();
+            if (bootcamp) bootcampName = bootcamp.name;
+        }
+        await sendNotification({
+            userId: student._id,
+            title: `Grade Posted`,
+            message: `Your submission for '${task?.title || "a task"}'${bootcampName ? ` in ${bootcampName}` : ""} has been graded.`,
+            type: "GRADE_POSTED",
+        });
 
         res.status(200).json({
             message: "Submission graded successfully.",

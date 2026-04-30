@@ -10,7 +10,7 @@ const base = z.object({
   division: z.string().min(1),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
-  status: z.enum(["Scheduled", "Cancelled", "Completed"]).default("Scheduled"),
+  status: z.enum(["Scheduled", "In Progress", "Cancelled", "Completed"]).default("Scheduled"),
 });
 
 const OnlineSession = base.extend({
@@ -41,7 +41,7 @@ const UpdateSessionSchema = z.object({
   type: z.enum(["online", "onPlace"]).optional(),
   location: z.string().optional(),
   link: z.string().optional(),
-  status: z.enum(["Scheduled", "Cancelled", "Completed"]).optional(),
+  status: z.enum(["Scheduled", "In Progress", "Cancelled", "Completed"]).optional(),
 });
 
 export const createSession = async (req, res) => {
@@ -459,6 +459,173 @@ export const getBootcampSeassions = async (req, res) => {
     return res.status(500).json({
       error: "Server Error",
       message: "Something went wrong.",
+    });
+  }
+};
+
+// Start a session
+export const startSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    if (!mongoose.isValidObjectId(sessionId)) {
+      return res.status(400).json({
+        error: "Validation Error",
+        message: "Invalid session id.",
+      });
+    }
+
+    const session = await SessionModel.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "Session not found.",
+      });
+    }
+
+    // Check if session is already in progress or completed
+    if (session.status === "In Progress") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Session is already in progress.",
+      });
+    }
+
+    if (session.status === "Completed") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Session has already been completed.",
+      });
+    }
+
+    if (session.status === "Cancelled") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Cannot start a cancelled session.",
+      });
+    }
+
+    // Update status to In Progress
+    session.status = "In Progress";
+    await session.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Session started successfully",
+      data: session,
+    });
+  } catch (error) {
+    console.error("Error starting session:", error);
+    return res.status(500).json({
+      error: "Server Error",
+      message: "Something went wrong while starting session.",
+    });
+  }
+};
+
+// End a session
+export const endSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    if (!mongoose.isValidObjectId(sessionId)) {
+      return res.status(400).json({
+        error: "Validation Error",
+        message: "Invalid session id.",
+      });
+    }
+
+    const session = await SessionModel.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "Session not found.",
+      });
+    }
+
+    // Check if session is already completed
+    if (session.status === "Completed") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Session has already been completed.",
+      });
+    }
+
+    if (session.status === "Cancelled") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Cannot end a cancelled session.",
+      });
+    }
+
+    // Import required models
+    const AttendanceModel = (await import("../models/Attendance.model.js")).default;
+    const EnrollmentModel = (await import("../models/Enrollment.model.js")).default;
+    const AttendancePermissionRequestModel = (await import("../models/AttendancePermissionRequest.model.js")).default;
+
+    // Get all enrolled students for this bootcamp
+    const enrollments = await EnrollmentModel.find({
+      bootcamp: session.bootcamp,
+      status: 'active'
+    }).select('student');
+
+    const enrolledStudentIds = enrollments.map(e => e.student.toString());
+
+    // Get students who already have attendance marked
+    const existingAttendance = await AttendanceModel.find({
+      session: sessionId
+    }).select('student');
+
+    const markedStudentIds = existingAttendance.map(a => a.student.toString());
+
+    // Get students with approved permission requests
+    const approvedPermissions = await AttendancePermissionRequestModel.find({
+      session: sessionId,
+      status: 'Approved'
+    }).select('student');
+
+    const approvedStudentIds = approvedPermissions.map(p => p.student.toString());
+
+    // Mark remaining students as Absent or Excused
+    const unmarkedStudentIds = enrolledStudentIds.filter(id => !markedStudentIds.includes(id));
+
+    const attendanceRecords = unmarkedStudentIds.map(studentId => ({
+      session: sessionId,
+      student: studentId,
+      status: approvedStudentIds.includes(studentId) ? 'Excused' : 'Absent',
+      markedBy: req.user.id,
+      markedAt: new Date()
+    }));
+
+    if (attendanceRecords.length > 0) {
+      await AttendanceModel.insertMany(attendanceRecords);
+    }
+
+    // Update session status to Completed
+    session.status = "Completed";
+    await session.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Session ended successfully",
+      data: {
+        session,
+        summary: {
+          totalStudents: enrolledStudentIds.length,
+          markedBefore: markedStudentIds.length,
+          markedNow: attendanceRecords.length,
+          absent: attendanceRecords.filter(a => a.status === 'Absent').length,
+          excused: attendanceRecords.filter(a => a.status === 'Excused').length
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error ending session:", error);
+    return res.status(500).json({
+      error: "Server Error",
+      message: "Something went wrong while ending session.",
     });
   }
 };

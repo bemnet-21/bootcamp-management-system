@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { swaggerUi, swaggerSpecs } from "./swagger.js";
-
+import { networkInterfaces } from "node:os";
 import authRoutes from './routes/auth.routes.js'
 import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
@@ -35,18 +35,40 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins for development/testing
+  credentials: true
+}));
 app.use(express.json());
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
+
+
 app.use('/auth', authRoutes)
-
-
 app.use('/admin/users', userRoutes)
 app.use('/admin/bootcamps', adminBootcampRoutes)
 app.use("/admin/divisions", divisionRoutes);
 app.use("/admin/reports", reportsRoutes);
 app.use("/users", publicUserRoutes);
+
+// Public divisions endpoint for all authenticated users
+app.get('/divisions', protect, async (req, res) => {
+  try {
+    const Division = (await import('./models/Division.model.js')).default;
+    const divisions = await Division.find({ isDeleted: false }).sort({ name: 1 }).lean();
+    res.json({
+      success: true,
+      data: divisions,
+      message: "Divisions fetched successfully."
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch divisions"
+    });
+  }
+});
 
 app.use("/bootcamps/:bootcampId/instructor", instructorRoutes);
 app.use("/bootcamps/:bootcampId/groups", groupsRoute);
@@ -107,8 +129,12 @@ app.use((err, req, res, next) => {
   });
 });
 
+
+
 await connectDB();
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log("Server is running on port: " + port);
+  console.log("Access locally: http://localhost:" + port);
+  console.log("Access on network: http://<YOUR_IP>:" + port);
 });

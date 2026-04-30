@@ -7,6 +7,8 @@ import {
   deleteSession,
   getBootcampSeassions,
   cancelSession,
+  startSession,
+  endSession,
 } from "../controllers/session.controller.js";
 import protect from "../middlewares/auth.js";
 import { checkLead } from "../middlewares/checkLead.js";
@@ -123,6 +125,16 @@ router.patch(
   "/:sessionId/cancel",
   requirePermission("sessions"),
   cancelSession,
+);
+router.patch(
+  "/:sessionId/start",
+  requirePermission("sessions"),
+  startSession,
+);
+router.patch(
+  "/:sessionId/end",
+  requirePermission("sessions"),
+  endSession,
 );
 router.delete("/:sessionId", checkLead, deleteSession);
 

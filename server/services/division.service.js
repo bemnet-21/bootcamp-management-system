@@ -188,6 +188,8 @@ export async function listDivisionsWithStats() {
         groupCount: 1,
         resourceCount: 1,
         bootcampCount: 1,
+        isDeleted: 1,
+        deletedAt: 1,
         createdAt: 1,
         updatedAt: 1,
       },
@@ -233,6 +235,26 @@ export async function deleteDivision(id) {
       $set: {
         isDeleted: true,
         deletedAt: new Date(),
+      },
+    },
+    { new: true },
+  );
+}
+
+// reactivate division
+
+export async function reactivateDivision(id) {
+  return Division.findOneAndUpdate(
+    {
+      _id: new mongoose.Types.ObjectId(id),
+      isDeleted: true,
+    },
+    {
+      $set: {
+        isDeleted: false,
+      },
+      $unset: {
+        deletedAt: "",
       },
     },
     { new: true },

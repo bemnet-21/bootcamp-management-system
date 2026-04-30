@@ -217,7 +217,7 @@ export const getBootcampById = async (req, res, next) => {
     }
 
     // 2. Check access: Lead Instructor
-    const isLeadInstructor = bootcamp.leadInstructor._id.toString() === userId;
+    const isLeadInstructor = bootcamp.leadInstructor?._id?.toString() === userId;
 
     // 3. Check access: Helper
     const isHelper = await BootcampHelper.findOne({
@@ -239,10 +239,26 @@ export const getBootcampById = async (req, res, next) => {
       });
     }
 
-    // 6. Return bootcamp data
+    // 6. Get enrollment count
+    const enrollmentCount = await Enrollment.countDocuments({
+      bootcamp: bootcampId,
+      status: 'active'
+    });
+
+    // 7. Get session count
+    const SessionModel = (await import("../models/Session.model.js")).default;
+    const sessionCount = await SessionModel.countDocuments({
+      bootcamp: bootcampId
+    });
+
+    // 8. Return bootcamp data with counts
     return res.status(200).json({
       success: true,
-      data: bootcamp,
+      data: {
+        ...bootcamp,
+        enrollmentCount,
+        sessionCount,
+      },
     });
   } catch (err) {
     console.error("Error in getBootcampById:", err);

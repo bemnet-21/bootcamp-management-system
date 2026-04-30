@@ -8,6 +8,7 @@ import {
   getAllGroups,
   getGroupDetails,
   updateGroup,
+  getAvailableStudents,
 } from "../controllers/groups.controller.js";
 import protect from "../middlewares/auth.js";
 import { requirePermission } from "../middlewares/requirePermission.js";
@@ -295,14 +296,17 @@ router.use(protect); //auth user only
 // Get my group
 router.get("/me", checkStudent, getMyGroup);
 
+// Get available students (not in any group)
+router.get("/available-students", requirePermission("groups"), getAvailableStudents);
+
 // Create group
 router.post("/", requirePermission("groups"), createGroup);
 
 // List groups in a bootcamp
-router.get("/", requirePermission("groups", true), getAllGroups);
+router.get("/", requirePermission({ permission: "groups", student: true }), getAllGroups);
 
 // Get single group (with members)
-router.get("/:groupId", requirePermission("groups", true), getGroupDetails);
+router.get("/:groupId", requirePermission({ permission: "groups", student: true }), getGroupDetails);
 
 // Update group
 router.put("/:groupId", requirePermission("groups"), updateGroup);

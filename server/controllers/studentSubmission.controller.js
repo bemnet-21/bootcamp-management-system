@@ -46,8 +46,8 @@ export const updateSubmission = async (req, res) => {
         if (submissionType === "File" && !hasFile) {
             return res.status(400).json({ error: "Validation Error", message: "File is required" });
         }
-        if (submissionType === "GitHub" && !hasLink) {
-            return res.status(400).json({ error: "Validation Error", message: "GitHub link is required" });
+        if (submissionType === "Link" && !hasLink) {
+            return res.status(400).json({ error: "Validation Error", message: "Link is required" });
         }
 
         submission.githubLink = githubLink || submission.githubLink;

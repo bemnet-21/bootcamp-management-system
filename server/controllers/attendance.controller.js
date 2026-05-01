@@ -872,18 +872,21 @@ export const getLiveAttendance = async (req, res) => {
       status: "active",
     }).populate("student", "firstName lastName email");
 
-    const attendanceRecords = await AttendanceModel.find({ session: sessionId })
+    const rawAttendance = await AttendanceModel.find({ session: sessionId })
       .populate("student", "firstName lastName email")
       .populate("markedBy", "firstName lastName");
+
+    // Drop attendance rows whose student has been deleted (populate -> null)
+    const attendanceRecords = rawAttendance.filter((a) => a.student != null);
 
     const approvedPermissions = await AttendancePermissionRequestModel.find({
       session: sessionId,
       status: "Approved",
     }).select("student");
 
-    const approvedStudentIds = approvedPermissions.map((p) =>
-      p.student.toString(),
-    );
+    const approvedStudentIds = approvedPermissions
+      .filter((p) => p.student != null)
+      .map((p) => p.student.toString());
 
     const liveAttendance = enrollments
       .filter((enrollment) => enrollment.student != null)
@@ -907,11 +910,13 @@ export const getLiveAttendance = async (req, res) => {
       });
 
     const stats = {
-      total: enrollments.length,
+      total: enrollments.filter((e) => e.student != null).length,
       present: attendanceRecords.filter((a) => a.status === "Present").length,
       absent: attendanceRecords.filter((a) => a.status === "Absent").length,
       excused: attendanceRecords.filter((a) => a.status === "Excused").length,
-      notMarked: enrollments.length - attendanceRecords.length,
+      notMarked:
+        enrollments.filter((e) => e.student != null).length -
+        attendanceRecords.length,
     };
 
     return res.status(200).json({
@@ -926,7 +931,6 @@ export const getLiveAttendance = async (req, res) => {
       .json({ error: "Internal Server Error", message: error.message });
   }
 };
-
 // Finalize attendance and end session
 const finalizeAttendanceSchema = z.object({
   sessionId: z.string().min(1, "Session ID is required"),

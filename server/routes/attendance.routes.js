@@ -1,5 +1,4 @@
 import express from "express";
-import AttendanceModel from "../models/Attendance.model.js";
 import {
   attendanceReport,
   bulkMarkAttendance,
@@ -27,45 +26,34 @@ const router = express.Router();
 
 router.use(protect);
 
-// --- Staff routes (lead instructor or helper with `attendance` permission) ---
+/* ------------------------------------------------------------------ */
+/* IMPORTANT: specific paths MUST be declared BEFORE the catch-all     */
+/* `:studentId` route, otherwise Express routes /finalize, /live, etc. */
+/* into markIndividualAttendance and you get "Invalid attendance data" */
+/* ------------------------------------------------------------------ */
+
+/* --- Student-only routes (no manager check) --- */
+router.get("/student/attendance/permission-requests", getMyPermissionRequests);
+router.get("/student/bootcamps/:bootcampId/attendance", getPersonalAttendance);
+router.get(
+  "/student/bootcamps/:bootcampId/attendance/stat",
+  getPersonalAttendancePercentage,
+);
+router.post("/attendance/scan", scanQRAndMarkAttendance);
+router.post(
+  "/sessions/:sessionId/attendance/permission-request",
+  requestAttendancePermission,
+);
+
+/* --- Staff specific (sub-path) routes — declared BEFORE the dynamic
+       `:studentId` ones below --- */
 
 router.post(
   "/sessions/:sessionId/attendance/bulk",
   attendanceManagerOnly,
   bulkMarkAttendance,
 );
-router.post(
-  "/sessions/:sessionId/attendance/:studentId",
-  attendanceManagerOnly,
-  markIndividualAttendance,
-);
-router.delete(
-  "/sessions/:sessionId/attendance/:studentId",
-  attendanceManagerOnly,
-  removeAttendance,
-);
-router.get(
-  "/sessions/:sessionId/attendance",
-  attendanceManagerOnly,
-  getAttendanceSheet,
-);
-router.post(
-  "/sessions/:sessionId/attendance/:studentId/excused",
-  attendanceManagerOnly,
-  markExecusedAbsence,
-);
-router.get(
-  "/bootcamps/:bootcampId/attendance/report",
-  attendanceManagerOnly,
-  attendanceReport,
-);
-router.get(
-  "/bootcamps/:bootcampId/attendance/export",
-  attendanceManagerOnly,
-  exportAttendanceReport,
-);
 
-// QR
 router.post(
   "/sessions/:sessionId/attendance/qr/generate",
   attendanceManagerOnly,
@@ -77,19 +65,6 @@ router.post(
   deactivateQR,
 );
 
-// Permission requests (staff)
-router.get(
-  "/bootcamps/:bootcampId/attendance/permission-requests",
-  attendanceManagerOnly,
-  getPermissionRequests,
-);
-router.post(
-  "/attendance/permission-requests/:requestId/review",
-  attendanceManagerOnly,
-  reviewPermissionRequest,
-);
-
-// Live + finalize
 router.get(
   "/sessions/:sessionId/attendance/live",
   attendanceManagerOnly,
@@ -101,18 +76,49 @@ router.post(
   finalizeAttendance,
 );
 
-// --- Student routes (any authenticated user; controllers enforce enrollment) ---
-
-router.get("/student/bootcamps/:bootcampId/attendance", getPersonalAttendance);
 router.get(
-  "/student/bootcamps/:bootcampId/attendance/stat",
-  getPersonalAttendancePercentage,
+  "/sessions/:sessionId/attendance",
+  attendanceManagerOnly,
+  getAttendanceSheet,
 );
-router.post("/attendance/scan", scanQRAndMarkAttendance);
+
+router.get(
+  "/bootcamps/:bootcampId/attendance/report",
+  attendanceManagerOnly,
+  attendanceReport,
+);
+router.get(
+  "/bootcamps/:bootcampId/attendance/export",
+  attendanceManagerOnly,
+  exportAttendanceReport,
+);
+
+router.get(
+  "/bootcamps/:bootcampId/attendance/permission-requests",
+  attendanceManagerOnly,
+  getPermissionRequests,
+);
 router.post(
-  "/sessions/:sessionId/attendance/permission-request",
-  requestAttendancePermission,
+  "/attendance/permission-requests/:requestId/review",
+  attendanceManagerOnly,
+  reviewPermissionRequest,
 );
-router.get("/student/attendance/permission-requests", getMyPermissionRequests);
+
+/* --- Dynamic `:studentId` routes — MUST come last --- */
+router.post(
+  "/sessions/:sessionId/attendance/:studentId/excused",
+  attendanceManagerOnly,
+  markExecusedAbsence,
+);
+router.post(
+  "/sessions/:sessionId/attendance/:studentId",
+  attendanceManagerOnly,
+  markIndividualAttendance,
+);
+router.delete(
+  "/sessions/:sessionId/attendance/:studentId",
+  attendanceManagerOnly,
+  removeAttendance,
+);
 
 export default router;

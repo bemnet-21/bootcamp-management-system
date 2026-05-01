@@ -449,6 +449,7 @@ export const getAvailableStudents = async (req, res) => {
     // Get all enrolled students in this bootcamp
     const enrollments = await EnrollmentModel.find({
       bootcamp: bootcampId,
+      status: 'active'
     }).populate("student", "firstName lastName email");
 
     if (!enrollments || enrollments.length === 0) {
@@ -469,11 +470,14 @@ export const getAvailableStudents = async (req, res) => {
       studentsInGroups.map((id) => id.toString())
     );
 
-    // Filter out students who are already in groups
-    const availableStudents = enrollments.filter(
-      (enrollment) =>
-        !studentsInGroupsSet.has(enrollment.student._id.toString())
-    );
+    // Filter out students who are already in groups and extract student objects
+    const availableStudents = enrollments
+      .filter(
+        (enrollment) =>
+          enrollment.student != null &&
+          !studentsInGroupsSet.has(enrollment.student._id.toString())
+      )
+      .map((enrollment) => enrollment.student);
 
     return res.status(200).json({
       success: true,

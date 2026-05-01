@@ -1,17 +1,69 @@
+import { z } from "zod";
+import SessionModel from "../models/Session.model.js";
+import mongoose from "mongoose";
+import { type } from "os";
+
+const base = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  teacher: z.string().min(1),
+  division: z.string().min(1),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  status: z.enum(["Scheduled", "Cancelled", "Completed"]).default("Scheduled"),
+});
+
+const OnlineSession = base.extend({
+  type: z.literal("online"),
+  link: z.string().min(1, "Link is required for online session"),
+  location: z.undefined(),
+});
+
+const OnPlaceSession = base.extend({
+  type: z.literal("onPlace"),
+  location: z.string().min(1, "Location is required for on-site session"),
+  link: z.undefined(),
+});
+
+const CreateSeassionSchema = z.discriminatedUnion("type", [
+  OnlineSession,
+  OnPlaceSession,
+]);
+
+const UpdateSessionSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  teacher: z.string().min(1).optional(),
+  division: z.string().min(1).optional(),
+  bootcamp: z.string().min(1).optional(),
+  startTime: z.string().datetime().optional(),
+  endTime: z.string().datetime().optional(),
+  type: z.enum(["online", "onPlace"]).optional(),
+  location: z.string().optional(),
+  link: z.string().optional(),
+  status: z.enum(["Scheduled", "Cancelled", "Completed"]).optional(),
+});
+
 // Update session controller (restored export)
 export const updateSession = async (req, res) => {
   try {
     const { bootcampId, sessionId } = req.params;
-    if (!mongoose.isValidObjectId(bootcampId) || !mongoose.isValidObjectId(sessionId)) {
+    if (
+      !mongoose.isValidObjectId(bootcampId) ||
+      !mongoose.isValidObjectId(sessionId)
+    ) {
       return res.status(400).json({
         error: "Validation Error",
-        message: "Invalid bootcamp or session id."
+        message: "Invalid bootcamp or session id.",
       });
     }
 
     // Validate input
     const validatedData = UpdateSessionSchema.parse(req.body);
-    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId });
+    const session = await SessionModel.findOne({
+      _id: sessionId,
+      bootcamp: bootcampId,
+    });
     if (!session) {
       return res.status(404).json({
         error: "Not Found",
@@ -145,59 +197,17 @@ export const updateSession = async (req, res) => {
     });
   }
 };
-import { z } from "zod";
-import SessionModel from "../models/Session.model.js";
-import mongoose from "mongoose";
-import { type } from "os";
-
-const base = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  teacher: z.string().min(1),
-  division: z.string().min(1),
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
-  status: z.enum(["Scheduled", "In Progress", "Cancelled", "Completed"]).default("Scheduled"),
-});
-
-const OnlineSession = base.extend({
-  type: z.literal("online"),
-  link: z.string().min(1, "Link is required for online session"),
-  location: z.undefined(),
-});
-
-const OnPlaceSession = base.extend({
-  type: z.literal("onPlace"),
-  location: z.string().min(1, "Location is required for on-site session"),
-  link: z.undefined(),
-});
-
-const CreateSeassionSchema = z.discriminatedUnion("type", [
-  OnlineSession,
-  OnPlaceSession,
-]);
-
-const UpdateSessionSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
-  teacher: z.string().min(1).optional(),
-  division: z.string().min(1).optional(),
-  bootcamp: z.string().min(1).optional(),
-  startTime: z.string().datetime().optional(),
-  endTime: z.string().datetime().optional(),
-  type: z.enum(["online", "onPlace"]).optional(),
-  location: z.string().optional(),
-  link: z.string().optional(),
-  status: z.enum(["Scheduled", "In Progress", "Cancelled", "Completed"]).optional(),
-});
 
 export const createSession = async (req, res) => {
   try {
     const { bootcampId, sessionId } = req.params;
-    if (!mongoose.isValidObjectId(bootcampId) || !mongoose.isValidObjectId(sessionId)) {
+    if (
+      !mongoose.isValidObjectId(bootcampId) ||
+      !mongoose.isValidObjectId(sessionId)
+    ) {
       return res.status(400).json({
         error: "Validation Error",
-        message: "Invalid bootcamp or session id."
+        message: "Invalid bootcamp or session id.",
       });
     }
 
@@ -261,290 +271,9 @@ export const createSession = async (req, res) => {
   }
 };
 
-export const getSeassions = async (req, res) => {
-  try {
-    const { bootcampId } = req.params;
-    const { division, teacher, startTime, endTime } = req.query;
-
-    if (!mongoose.isValidObjectId(bootcampId)) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: "Invalid bootcamp id."
-      });
-    }
-
-    const filter = { bootcamp: bootcampId };
-    if (division) filter.division = division;
-    if (teacher) filter.teacher = teacher;
-
-    // FIXED TIME FILTER LOGIC
-    if (startTime || endTime) {
-      if (!startTime || !endTime) {
-        return res.status(400).json({
-          error: "Validation Error",
-          message:
-            "Both start time and end time are required to filter by date.",
-        });
-      }
-
-      const start = new Date(startTime);
-      start.setUTCHours(0, 0, 0, 0);
-
-      const end = new Date(endTime);
-      end.setUTCHours(23, 59, 59, 999);
-
-      // CORRECT OVERLAP FILTER
-      filter.startTime = { $lte: end };
-      filter.endTime = { $gte: start };
-    }
-
-    const sessions = await SessionModel.find(filter).sort({ createdAt: -1 });
-    return res.json({ sessions });
-  } catch (err) {
-    return res.status(500).json({
-      error: "Server Error",
-      message: "Something went wrong.",
-    });
-  }
-};
-
-export const getSingleSession = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-
-    if (!mongoose.isValidObjectId(sessionId)) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: "Invalid session id.",
-      });
-    }
-    const session = await SessionModel.findById(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        error: "Not Found",
-        message: "Session not found.",
-      });
-    }
 
 
-    // Type-specific logic
-    if (merged.type === "online") {
-      merged.location = undefined;
-      if (!merged.link) {
-        return res.status(400).json({
-          error: "Validation Error",
-          message: "Link is required for online session.",
-        });
-      }
-    }
-    if (merged.type === "onPlace") {
-      merged.link = undefined;
-      if (!merged.location) {
-        return res.status(400).json({
-          error: "Validation Error",
-          message: "Location is required for on-site session.",
-        });
-      }
-    }
 
-    // Validate with correct schema name
-    CreateSeassionSchema.parse({
-      ...merged,
-      startTime: merged.startTime.toISOString(),
-      endTime: merged.endTime.toISOString(),
-    });
-
-    // Time logic checks
-    const start = merged.startTime;
-    const end = merged.endTime;
-    const now = new Date();
-    if (end <= start) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: "End time must be after start time.",
-      });
-    }
-    const duration = (end - start) / (1000 * 60);
-    if (duration < 30) {
-      return res.status(400).json({
-        error: "Invalid Session Duration",
-        message: "Session must be at least 30 minutes.",
-      });
-    }
-    if (start < now) {
-      return res.status(400).json({
-        error: "Invalid Time",
-        message: "Start time cannot be in the past.",
-      });
-    }
-
-    // Location conflict
-    if (merged.type === "onPlace") {
-      const locationConflict = await SessionModel.findOne({
-        _id: { $ne: sessionId },
-        location: merged.location,
-        startTime: { $lt: end },
-        endTime: { $gt: start },
-      });
-      if (locationConflict) {
-        return res.status(409).json({
-          error: "Schedule Conflict",
-          message: "Location is already occupied at this time.",
-        });
-      }
-    }
-
-    // Instructor conflict
-    const instructorConflict = await SessionModel.findOne({
-      _id: { $ne: sessionId },
-      teacher: merged.teacher,
-      startTime: { $lt: end },
-      endTime: { $gt: start },
-    });
-    if (instructorConflict) {
-      return res.status(409).json({
-        error: "Schedule Conflict",
-        message: "Teacher is already assigned to another session at this time.",
-      });
-    }
-
-    // Final update
-    Object.assign(session, merged);
-    await session.save();
-    return res.status(200).json({
-      message: "Session updated successfully",
-      session,
-    });
-  } catch (error) {
-    console.log(error);
-
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: "Invalid input data.",
-      });
-    }
-    return res.status(500).json({
-      error: "Server Error",
-      message: "Something went wrong while updating session.",
-    });
-  }
-};
-import { z } from "zod";
-import SessionModel from "../models/Session.model.js";
-import mongoose from "mongoose";
-import { type } from "os";
-
-const base = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  teacher: z.string().min(1),
-  division: z.string().min(1),
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
-  status: z.enum(["Scheduled", "Cancelled", "Completed"]).default("Scheduled"),
-});
-
-const OnlineSession = base.extend({
-  type: z.literal("online"),
-  link: z.string().min(1, "Link is required for online session"),
-  location: z.undefined(),
-});
-
-const OnPlaceSession = base.extend({
-  type: z.literal("onPlace"),
-  location: z.string().min(1, "Location is required for on-site session"),
-  link: z.undefined(),
-});
-
-const CreateSeassionSchema = z.discriminatedUnion("type", [
-  OnlineSession,
-  OnPlaceSession,
-]);
-
-const UpdateSessionSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
-  teacher: z.string().min(1).optional(),
-  division: z.string().min(1).optional(),
-  bootcamp: z.string().min(1).optional(),
-  startTime: z.string().datetime().optional(),
-  endTime: z.string().datetime().optional(),
-  type: z.enum(["online", "onPlace"]).optional(),
-  location: z.string().optional(),
-  link: z.string().optional(),
-  status: z.enum(["Scheduled", "Cancelled", "Completed"]).optional(),
-});
-
-export const createSession = async (req, res) => {
-  try {
-    const { bootcampId, sessionId } = req.params;
-    if (!mongoose.isValidObjectId(bootcampId) || !mongoose.isValidObjectId(sessionId)) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: "Invalid bootcamp or session id."
-      });
-    }
-
-    // Validate input
-    const validatedData = UpdateSessionSchema.parse(req.body);
-    // ...existing code...
-
-    // seassion overlap checking
-    const overlappingSessions = await SessionModel.find({
-      location: validatedData.location,
-      startTime: { $lt: endTime },
-      endTime: { $gt: startTime },
-    });
-
-    if (overlappingSessions.length > 0) {
-      return res.status(409).json({
-        error: "Schedule Conflict",
-        message: "There is already a session scheduled at this time.",
-      });
-    }
-
-    // instructor conflict check
-    const instructorConflict = await SessionModel.findOne({
-      teacher: validatedData.teacher,
-      startTime: { $lt: endTime },
-      endTime: { $gt: startTime },
-    });
-
-    if (instructorConflict) {
-      return res.status(409).json({
-        error: "Schedule Conflict",
-        message:
-          "The teacher is already assigned to another session during this time.",
-      });
-    }
-    console.log(validatedData);
-
-    //  Create session
-    const session = await SessionModel.create({
-      ...validatedData,
-      startTime,
-      endTime,
-    });
-
-    return res.status(201).json({
-      message: "Session created successfully",
-      data: session,
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        error: "Validation Error",
-        message: "Invalid input data. Please check required fields.",
-      });
-    }
-
-    return res.status(500).json({
-      error: "Server Error",
-      message: "Something went wrong.",
-    });
-  }
-};
 
 export const getSeassions = async (req, res) => {
   try {
@@ -554,7 +283,7 @@ export const getSeassions = async (req, res) => {
     if (!mongoose.isValidObjectId(bootcampId)) {
       return res.status(400).json({
         error: "Validation Error",
-        message: "Invalid bootcamp id."
+        message: "Invalid bootcamp id.",
       });
     }
 
@@ -596,7 +325,10 @@ export const getSeassions = async (req, res) => {
 export const getSingleSession = async (req, res) => {
   try {
     const { bootcampId, sessionId } = req.params;
-    if (!mongoose.isValidObjectId(bootcampId) || !mongoose.isValidObjectId(sessionId)) {
+    if (
+      !mongoose.isValidObjectId(bootcampId) ||
+      !mongoose.isValidObjectId(sessionId)
+    ) {
       return res.status(400).json({
         error: "Validation Error",
         message: "Invalid session id.",
@@ -609,7 +341,6 @@ export const getSingleSession = async (req, res) => {
         message: "Session not found.",
       });
     }
-
 
     // Type-specific logic
     if (merged.type === "online") {
@@ -718,14 +449,20 @@ export const getSingleSession = async (req, res) => {
 export const cancelSession = async (req, res) => {
   try {
     const { bootcampId, sessionId } = req.params;
-    if (!mongoose.isValidObjectId(bootcampId) || !mongoose.isValidObjectId(sessionId)) {
+    if (
+      !mongoose.isValidObjectId(bootcampId) ||
+      !mongoose.isValidObjectId(sessionId)
+    ) {
       return res.status(400).json({
         error: "Validation Error",
-        message: "Invalid bootcamp or session id."
+        message: "Invalid bootcamp or session id.",
       });
     }
 
-    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId });
+    const session = await SessionModel.findOne({
+      _id: sessionId,
+      bootcamp: bootcampId,
+    });
 
     if (!session) {
       return res.status(404).json({
@@ -762,14 +499,20 @@ export const cancelSession = async (req, res) => {
 export const deleteSession = async (req, res) => {
   try {
     const { bootcampId, sessionId } = req.params;
-    if (!mongoose.isValidObjectId(bootcampId) || !mongoose.isValidObjectId(sessionId)) {
+    if (
+      !mongoose.isValidObjectId(bootcampId) ||
+      !mongoose.isValidObjectId(sessionId)
+    ) {
       return res.status(400).json({
         error: "Validation Error",
-        message: "Invalid bootcamp or session id."
+        message: "Invalid bootcamp or session id.",
       });
     }
 
-    const session = await SessionModel.findOne({ _id: sessionId, bootcamp: bootcampId });
+    const session = await SessionModel.findOne({
+      _id: sessionId,
+      bootcamp: bootcampId,
+    });
 
     if (!session) {
       return res.status(404).json({
@@ -929,42 +672,52 @@ export const endSession = async (req, res) => {
     }
 
     // Import required models
-    const AttendanceModel = (await import("../models/Attendance.model.js")).default;
-    const EnrollmentModel = (await import("../models/Enrollment.model.js")).default;
-    const AttendancePermissionRequestModel = (await import("../models/AttendancePermissionRequest.model.js")).default;
+    const AttendanceModel = (await import("../models/Attendance.model.js"))
+      .default;
+    const EnrollmentModel = (await import("../models/Enrollment.model.js"))
+      .default;
+    const AttendancePermissionRequestModel = (
+      await import("../models/AttendancePermissionRequest.model.js")
+    ).default;
 
     // Get all enrolled students for this bootcamp
     const enrollments = await EnrollmentModel.find({
       bootcamp: session.bootcamp,
-      status: 'active'
-    }).select('student');
+      status: "active",
+    }).select("student");
 
-    const enrolledStudentIds = enrollments.map(e => e.student.toString());
+    const enrolledStudentIds = enrollments.map((e) => e.student.toString());
 
     // Get students who already have attendance marked
     const existingAttendance = await AttendanceModel.find({
-      session: sessionId
-    }).select('student');
+      session: sessionId,
+    }).select("student");
 
-    const markedStudentIds = existingAttendance.map(a => a.student.toString());
+    const markedStudentIds = existingAttendance.map((a) =>
+      a.student.toString(),
+    );
 
     // Get students with approved permission requests
     const approvedPermissions = await AttendancePermissionRequestModel.find({
       session: sessionId,
-      status: 'Approved'
-    }).select('student');
+      status: "Approved",
+    }).select("student");
 
-    const approvedStudentIds = approvedPermissions.map(p => p.student.toString());
+    const approvedStudentIds = approvedPermissions.map((p) =>
+      p.student.toString(),
+    );
 
     // Mark remaining students as Absent or Excused
-    const unmarkedStudentIds = enrolledStudentIds.filter(id => !markedStudentIds.includes(id));
+    const unmarkedStudentIds = enrolledStudentIds.filter(
+      (id) => !markedStudentIds.includes(id),
+    );
 
-    const attendanceRecords = unmarkedStudentIds.map(studentId => ({
+    const attendanceRecords = unmarkedStudentIds.map((studentId) => ({
       session: sessionId,
       student: studentId,
-      status: approvedStudentIds.includes(studentId) ? 'Excused' : 'Absent',
+      status: approvedStudentIds.includes(studentId) ? "Excused" : "Absent",
       markedBy: req.user.id,
-      markedAt: new Date()
+      markedAt: new Date(),
     }));
 
     if (attendanceRecords.length > 0) {
@@ -984,10 +737,11 @@ export const endSession = async (req, res) => {
           totalStudents: enrolledStudentIds.length,
           markedBefore: markedStudentIds.length,
           markedNow: attendanceRecords.length,
-          absent: attendanceRecords.filter(a => a.status === 'Absent').length,
-          excused: attendanceRecords.filter(a => a.status === 'Excused').length
-        }
-      }
+          absent: attendanceRecords.filter((a) => a.status === "Absent").length,
+          excused: attendanceRecords.filter((a) => a.status === "Excused")
+            .length,
+        },
+      },
     });
   } catch (error) {
     console.error("Error ending session:", error);

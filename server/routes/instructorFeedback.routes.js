@@ -1,7 +1,15 @@
-import express from 'express'
-import protect from '../middlewares/auth.js';
-import { checkInstructor } from '../middlewares/checkInstructor.js';
-import { getFeedbackPerBootcamp, getFeedbackPerSession, instructorFeedbackStats, requestSessionFeedback } from '../controllers/instructorFeedback.controller.js';
+import express from "express";
+import protect from "../middlewares/auth.js";
+import { checkInstructor } from "../middlewares/checkInstructor.js";
+import {
+  getFeedbackPerBootcamp,
+  getFeedbackPerSession,
+  instructorFeedbackStats,
+  requestSessionFeedback,
+} from "../controllers/instructorFeedback.controller.js";
+
+const router = express.Router({ mergeParams: true });
+
 /**
  * @swagger
  * /instructor/bootcamps/{bootcampId}/sessions/{sessionId}/request-feedback:
@@ -33,9 +41,12 @@ import { getFeedbackPerBootcamp, getFeedbackPerSession, instructorFeedbackStats,
  *       500:
  *         description: Internal server error
  */
-router.post('/sessions/:sessionId/request-feedback', protect, checkInstructor, requestSessionFeedback);
-
-const router = express.Router({ mergeParams: true });
+router.post(
+  "/sessions/:sessionId/request-feedback",
+  protect,
+  checkInstructor,
+  requestSessionFeedback,
+);
 
 /**
  * @swagger
@@ -60,7 +71,7 @@ const router = express.Router({ mergeParams: true });
  *       500:
  *         description: Internal server error
  */
-router.get('/feedback', protect, checkInstructor, getFeedbackPerBootcamp)
+router.get("/feedback", protect, checkInstructor, getFeedbackPerBootcamp);
 
 /**
  * @swagger
@@ -91,7 +102,12 @@ router.get('/feedback', protect, checkInstructor, getFeedbackPerBootcamp)
  *       500:
  *         description: Internal server error
  */
-router.get('/sessions/:sessionId/feedback', protect, checkInstructor, getFeedbackPerSession)
+router.get(
+  "/sessions/:sessionId/feedback",
+  protect,
+  checkInstructor,
+  getFeedbackPerSession,
+);
 
 /**
  * @swagger
@@ -116,6 +132,11 @@ router.get('/sessions/:sessionId/feedback', protect, checkInstructor, getFeedbac
  *       500:
  *         description: Internal server error
  */
-router.get('/feedback/stats', protect, checkInstructor, instructorFeedbackStats)
+router.get(
+  "/feedback/stats",
+  protect,
+  checkInstructor,
+  instructorFeedbackStats,
+);
 
 export default router;

@@ -3,7 +3,6 @@ import BootcampModel from "../models/Bootcamp.model.js"
 import EnrollmentModel from "../models/Enrollment.model.js"
 import TaskModel from "../models/Task.model.js"
 import SubmissionModel from "../models/Submission.model.js"
-import EnrollmentModel from "../models/Enrollment.model.js"
 
 export const getAssignedTasks = async (req, res) => {
     try {

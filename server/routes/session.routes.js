@@ -2,10 +2,9 @@ import express from "express";
 import {
   createSession,
   getSingleSession,
-  getSeassions,
   updateSession,
   deleteSession,
-  getBootcampSeassions,
+  getBootcampSessions,
   cancelSession,
   startSession,
   endSession,
@@ -153,7 +152,7 @@ router.get(
   requirePermission({ permission: "sessions", student: true }),
   getSingleSession,
 );
-router.get("/", requirePermission("sessions", true), getBootcampSeassions);
+router.get("/", requirePermission("sessions", true), getBootcampSessions);
 router.patch("/:sessionId", requirePermission("sessions"), updateSession);
 router.patch(
   "/:sessionId/cancel",

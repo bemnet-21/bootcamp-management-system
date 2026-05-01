@@ -1,12 +1,8 @@
-import express from "express";
-import protect from "../middlewares/auth.js";
-import { checkInstructor } from "../middlewares/checkInstructor.js";
-import {
-  getFeedbackPerBootcamp,
-  getFeedbackPerSession,
-  instructorFeedbackStats,
-  requestSessionFeedback,
-} from "../controllers/instructorFeedback.controller.js";
+import express from 'express'
+import protect from '../middlewares/auth.js';
+import { checkInstructor } from '../middlewares/checkInstructor.js';
+import { getFeedbackPerBootcamp, getFeedbackPerSession, instructorFeedbackStats, requestSessionFeedback } from '../controllers/instructorFeedback.controller.js';
+
 
 const router = express.Router({ mergeParams: true });
 
@@ -41,12 +37,7 @@ const router = express.Router({ mergeParams: true });
  *       500:
  *         description: Internal server error
  */
-router.post(
-  "/sessions/:sessionId/request-feedback",
-  protect,
-  checkInstructor,
-  requestSessionFeedback,
-);
+router.post('/sessions/:sessionId/request-feedback', protect, checkInstructor, requestSessionFeedback);
 
 /**
  * @swagger

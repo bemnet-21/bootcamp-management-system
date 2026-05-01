@@ -62,7 +62,7 @@ router.post('/sessions/:sessionId/request-feedback', protect, checkInstructor, r
  *       500:
  *         description: Internal server error
  */
-router.get('/feedback', protect, checkInstructor, getFeedbackPerBootcamp)
+router.get("/feedback", protect, checkInstructor, getFeedbackPerBootcamp);
 
 /**
  * @swagger
@@ -93,7 +93,12 @@ router.get('/feedback', protect, checkInstructor, getFeedbackPerBootcamp)
  *       500:
  *         description: Internal server error
  */
-router.get('/sessions/:sessionId/feedback', protect, checkInstructor, getFeedbackPerSession)
+router.get(
+  "/sessions/:sessionId/feedback",
+  protect,
+  checkInstructor,
+  getFeedbackPerSession,
+);
 
 /**
  * @swagger
@@ -118,6 +123,11 @@ router.get('/sessions/:sessionId/feedback', protect, checkInstructor, getFeedbac
  *       500:
  *         description: Internal server error
  */
-router.get('/feedback/stats', protect, checkInstructor, instructorFeedbackStats)
+router.get(
+  "/feedback/stats",
+  protect,
+  checkInstructor,
+  instructorFeedbackStats,
+);
 
 export default router;

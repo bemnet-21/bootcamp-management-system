@@ -7,6 +7,7 @@ import {
   deleteBootcamp,
   updateBootcamp,
   softDeleteBootcamp,
+  reactivateBootcamp,
 } from "../controllers/adminBootcamp.controller.js";
 import protect from "../middlewares/auth.js";
 import { restrictTo } from "../middlewares/checkRole.js";
@@ -244,5 +245,5 @@ router.delete("/:id", deleteBootcamp);
 router.put("/:id", updateBootcamp);
 router.patch("/:id/assign-lead", assignLeadInstructor);
 router.patch("/:id/deactivate", softDeleteBootcamp);
-
+router.patch("/:id/reactivate", reactivateBootcamp);
 export default router;

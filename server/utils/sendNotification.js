@@ -59,28 +59,64 @@ export async function sendNotification({ userId, title, message, type }) {
 
   // Email notification with improved HTML UI
   if (prefs.email && typeAllowed) {
-    let html = `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 8px #f0f0f0;">
-        <div style="background: #2d6cdf; color: #fff; padding: 18px 24px; border-radius: 8px 8px 0 0;">
-          <h2 style="margin: 0; font-size: 1.3em;">${title}</h2>
+  // Brand Configuration
+  const brandColor = "#0B74C9"; // Vanguard Blue
+  const secondaryColor = "#0469BE";
+  const textColor = "#1F2937"; // Dark Gray
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        .container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; }
+        .header { background: linear-gradient(135deg, ${brandColor} 0%, ${secondaryColor} 100%); padding: 40px 30px; text-align: left; color: #ffffff; }
+        .logo-text { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.8; margin-bottom: 8px; display: block; }
+        .title { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+        .content { padding: 40px 30px; color: ${textColor}; line-height: 1.6; }
+        .message { font-size: 16px; margin-bottom: 30px; color: #4B5563; }
+        .button { display: inline-block; padding: 14px 28px; background-color: ${brandColor}; color: #ffffff !important; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; box-shadow: 0 4px 12px rgba(11, 116, 201, 0.25); }
+        .footer { background-color: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #f3f4f6; }
+        .footer-text { font-size: 12px; color: #9CA3AF; margin-bottom: 4px; }
+        .csec-brand { font-weight: 800; color: ${brandColor}; text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; }
+        .preferences { margin-top: 15px; font-size: 11px; color: #D1D5DB; }
+        .preferences a { color: ${brandColor}; text-decoration: none; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <span class="logo-text">CSEC ASTU • Bootcamp Portal</span>
+          <h1 class="title">${title}</h1>
         </div>
-        <div style="padding: 24px; color: #222;">
-          <p style="font-size: 1.1em;">${message}</p>
-          ${link ? `<a href="${link}" style="display: inline-block; margin-top: 18px; padding: 10px 22px; background: #2d6cdf; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold;">View Details</a>` : ''}
+        <div class="content">
+          <p class="message">${message.replace(/\n/g, '<br>')}</p>
+          ${link ? `<a href="${link}" class="button">Access Workspace</a>` : ''}
         </div>
-        <div style="background: #f7f7f7; color: #888; padding: 12px 24px; border-radius: 0 0 8px 8px; font-size: 0.95em;">
-          This is an automated message from Bootcamp Management System.
+        <div class="footer">
+          <div class="csec-brand">Computer Science & Engineering Club</div>
+          <div class="footer-text">Adama Science and Technology University</div>
+          <div class="footer-text">© ${new Date().getFullYear()} CSEC ASTU. All Rights Reserved.</div>
+          <div class="preferences">
+            You received this because of your notification settings. 
+            <a href="${process.env.FRONTEND_URL}/settings">Manage Preferences</a>
+          </div>
         </div>
       </div>
-    `;
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: title,
-      text: message + (link ? `\nView: ${link}` : ''),
-      html,
-    });
-  }
+    </body>
+    </html>
+  `;
+
+  await transporter.sendMail({
+    from: `"CSEC ASTU Portal" <${process.env.EMAIL_USER}>`, // Professional Sender Name
+    to: user.email,
+    subject: `[CSEC Portal] ${title}`, // Branded Subject Line
+    text: `${message}\n\nView Details: ${link}`, // Plain text fallback
+    html,
+  });
+}
 
   return notification;
 }

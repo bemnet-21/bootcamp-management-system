@@ -461,8 +461,12 @@ export const deactivateQR = async (req, res) => {
 
     try {
         const qrRecord = await AttendanceQRModel.findOne({ session: sessionId, isActive: true });
+
+        // If no active QR found, consider it already deactivated (success)
         if (!qrRecord) {
-            return res.status(404).json({ error: "Not Found", message: "No active QR code found for this session" });
+            return res.status(200).json({
+                message: "QR code already deactivated or not found"
+            });
         }
 
         qrRecord.isActive = false;
@@ -888,11 +892,14 @@ export const finalizeAttendance = async (req, res) => {
             return res.status(404).json({ error: "Not Found", message: "Session not found" });
         }
 
-        // Get all enrolled students
+        // Get all enrolled students (filter out null students)
         const enrollments = await EnrollmentModel.find({
             bootcamp: session.bootcamp,
             status: 'active'
-        });
+        }).populate('student');
+
+        // Filter out enrollments with null students
+        const validEnrollments = enrollments.filter(e => e.student != null);
 
         // Get existing attendance records
         const existingAttendance = await AttendanceModel.find({ session: sessionId });
@@ -907,8 +914,8 @@ export const finalizeAttendance = async (req, res) => {
 
         // Mark remaining students
         const bulkOps = [];
-        for (const enrollment of enrollments) {
-            const studentId = enrollment.student.toString();
+        for (const enrollment of validEnrollments) {
+            const studentId = enrollment.student._id.toString();
 
             // Skip if already marked (Present/Late from scanning or manual add)
             if (markedStudentIds.includes(studentId)) {
@@ -963,11 +970,17 @@ export const finalizeAttendance = async (req, res) => {
         return res.status(200).json({
             message: "Attendance finalized successfully",
             studentsMarked: bulkOps.length,
-            sessionStatus: session.status
+            sessionStatus: session.status,
+            totalStudents: validEnrollments.length
         });
 
     } catch (error) {
         console.error('Error finalizing attendance:', error);
-        return res.status(500).json({ error: "Internal Server Error", message: error.message });
+        console.error('Error stack:', error.stack);
+        return res.status(500).json({
+            error: "Internal Server Error",
+            message: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 }

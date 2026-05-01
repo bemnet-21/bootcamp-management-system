@@ -205,10 +205,13 @@ export const createBootcamp = async (req, res, next) => {
               </html>
             `,
           });
-          console.log('Lead instructor notification email sent successfully');
+          console.log("Lead instructor notification email sent successfully");
         }
       } catch (emailError) {
-        console.error('Failed to send lead instructor notification email:', emailError);
+        console.error(
+          "Failed to send lead instructor notification email:",
+          emailError,
+        );
         // Don't fail the request if email fails
       }
     }
@@ -246,11 +249,11 @@ export const getAllBootcamps = async (req, res, next) => {
       bootcamps.map(async (bootcamp) => {
         const enrollmentCount = await Enrollment.countDocuments({
           bootcamp: bootcamp._id,
-          status: 'active'
+          status: "active",
         });
 
         const sessionCount = await SessionModel.countDocuments({
-          bootcamp: bootcamp._id
+          bootcamp: bootcamp._id,
         });
 
         return {
@@ -268,7 +271,7 @@ export const getAllBootcamps = async (req, res, next) => {
           createdAt: bootcamp.createdAt,
           updatedAt: bootcamp.updatedAt,
         };
-      })
+      }),
     );
 
     return res.status(200).json({
@@ -302,14 +305,16 @@ export const getBootcampById = async (req, res, next) => {
     // Get enrollment count and enrolled students
     const enrollments = await Enrollment.find({
       bootcamp: bootcamp._id,
-      status: 'active'
-    }).populate('student', 'firstName lastName email').lean();
+      status: "active",
+    })
+      .populate("student", "firstName lastName email")
+      .lean();
 
-    const students = enrollments.map(e => e.student).filter(s => s != null);
+    const students = enrollments.map((e) => e.student).filter((s) => s != null);
 
     // Get sessions
     const sessions = await SessionModel.find({
-      bootcamp: bootcamp._id
+      bootcamp: bootcamp._id,
     }).lean();
 
     return res.status(200).json({
@@ -506,6 +511,39 @@ export const softDeleteBootcamp = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Bootcamp deactivated successfully",
+      data: bootcamp,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+export const reactivateBootcamp = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Bootcamp ID",
+      });
+    }
+
+    const bootcamp = await Bootcamp.findByIdAndUpdate(
+      id,
+      { isActive: true },
+      { new: true },
+    );
+
+    if (!bootcamp) {
+      return res.status(404).json({
+        success: false,
+        message: "Bootcamp not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Bootcamp reactivated successfully",
       data: bootcamp,
     });
   } catch (err) {

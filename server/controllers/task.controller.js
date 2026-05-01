@@ -243,7 +243,7 @@ export const getAllSubmissionForTask = async (req, res) => {
         const bootcamp = await BootcampModel.findById(bootcampId)
         if(!bootcamp) return res.status(404).json({ error: "Bootcamp not found" })
 
-        const submission = await SubmissionModel.find({ task: taskId })
+        const submission = await SubmissionModel.find({ task: taskId }).populate("student", "firstName lastName email")
         if(submission.length === 0) return res.status(200).json({ message: "No submissions were found" })
 
         res.status(200).json({

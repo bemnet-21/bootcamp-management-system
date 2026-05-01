@@ -8,7 +8,11 @@ const paginationSchema = z.object({
 });
 
 export const getNotifications = async (req, res) => {
-    const parseResult = paginationSchema.safeParse(req.query);
+    // Ensure page and limit are numbers if present
+    const query = { ...req.query };
+    if (query.page !== undefined) query.page = Number(query.page);
+    if (query.limit !== undefined) query.limit = Number(query.limit);
+    const parseResult = paginationSchema.safeParse(query);
     if (!parseResult.success) {
         const errors = parseResult.error.errors.map(e => e.message).join(", ");
         return res.status(400).json({ 

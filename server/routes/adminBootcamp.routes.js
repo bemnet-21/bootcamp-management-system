@@ -6,7 +6,7 @@ import {
   getBootcampById,
   deleteBootcamp,
   updateBootcamp,
-  softDeleteBootcamp
+  softDeleteBootcamp,
 } from "../controllers/adminBootcamp.controller.js";
 import protect from "../middlewares/auth.js";
 import { restrictTo } from "../middlewares/checkRole.js";
@@ -234,6 +234,7 @@ import { restrictTo } from "../middlewares/checkRole.js";
  */
 
 const router = express.Router();
+
 // protect  for admins only
 router.use(protect, restrictTo("Admin"));
 router.post("/", createBootcamp);
@@ -243,4 +244,5 @@ router.delete("/:id", deleteBootcamp);
 router.put("/:id", updateBootcamp);
 router.patch("/:id/assign-lead", assignLeadInstructor);
 router.patch("/:id/deactivate", softDeleteBootcamp);
+
 export default router;

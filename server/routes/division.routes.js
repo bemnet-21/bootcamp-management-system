@@ -6,10 +6,10 @@ import {
   updateDivisionHandler,
   getDivisionDetail,
   deleteDivisionHandler,
+  reactivateDivisionHandler,
 } from "../controllers/division.controller.js";
 import { restrictTo } from "../middlewares/checkRole.js";
 import protect from "../middlewares/auth.js";
-
 
 /**
  * @swagger
@@ -173,10 +173,16 @@ import protect from "../middlewares/auth.js";
 const router = Router();
 router.use(protect);
 router.post("/", restrictTo("Admin"), createDivisionHandler);
-router.get("/", listDivisions);
+router.get("/", restrictTo("Admin"), listDivisions);
 router.put("/:id", restrictTo("Admin"), updateDivisionHandler);
-router.get("/:id", getDivisionDetail);
-router.get("/:id/statistics", getDivisionStatisticsHandler);
+router.get("/:id", restrictTo("Admin"), getDivisionDetail);
+router.get(
+  "/:id/statistics",
+  restrictTo("Admin"),
+  getDivisionStatisticsHandler,
+);
 router.delete("/:id", restrictTo("Admin"), deleteDivisionHandler);
+
+router.patch("/:id/reactivate", restrictTo("Admin"), reactivateDivisionHandler);
 
 export default router;

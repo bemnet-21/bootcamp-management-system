@@ -9,7 +9,7 @@ const sessionSchema = new Schema(
       enum: ["online", "onPlace"],
       required: true,
     },
-    instructor: {
+    teacher: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -35,7 +35,7 @@ const sessionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["Scheduled", "Cancelled", "Completed"],
+      enum: ["Scheduled", "In Progress", "Cancelled", "Completed"],
       default: "Scheduled",
     },
   },

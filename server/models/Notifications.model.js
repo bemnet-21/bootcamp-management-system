@@ -11,7 +11,7 @@ const notificationSchema = new mongoose.Schema({
   message: { type: String, required: true },
   type: { 
     type: String, 
-    enum: ['SESSION_REMINDER', 'GRADE_POSTED', 'BOOTCAMP_INVITE', 'FEEDBACK_REQUEST'],
+    enum: ['SESSION_REMINDER', 'GRADE_POSTED', 'BOOTCAMP_INVITE', 'FEEDBACK_REQUEST', 'BOOTCAMP_EXPELLED'],
     required: true 
   },
   link: { type: String },

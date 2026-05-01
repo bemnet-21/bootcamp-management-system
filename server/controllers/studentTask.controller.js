@@ -1,34 +1,44 @@
 import z from "zod"
 import BootcampModel from "../models/Bootcamp.model.js"
+import EnrollmentModel from "../models/Enrollment.model.js"
 import TaskModel from "../models/Task.model.js"
 import SubmissionModel from "../models/Submission.model.js"
 
 export const getAssignedTasks = async (req, res) => {
     try {
-        const bootcamps = await BootcampModel.find({ students: req.user.id }).select("_id")
-        if(bootcamps.length === 0) return res.json({ message:"Not registered in any bootcamp" })
-        const bootcampIds = bootcamps.map(bootcamp => bootcamp._id)
+        const enrollments = await EnrollmentModel.find({
+            student: req.user.id,
+            status: 'active'
+        }).select("bootcamp")
+
+        if(enrollments.length === 0) return res.json({
+            message:"Not registered in any bootcamp",
+            tasks: []
+        })
+
+        const bootcampIds = enrollments.map(enrollment => enrollment.bootcamp)
 
         const tasks = await TaskModel.find({ bootcamp: { $in: bootcampIds } })
                                      .populate("bootcamp", "name")
                                      .populate("instructor", "firstName lastName email")
                                      .sort({ deadline: -1 })
                                      .lean()
-        if(tasks.length === 0) return res.status(200).json({ 
+
+        if(tasks.length === 0) return res.status(200).json({
             message: "No tasks assigned",
             tasks: []
          })
 
-         res.status(200).json({
+        res.status(200).json({
             message: "Assigned tasks retrieved successfully",
             tasks
          })
 
     } catch(err) {
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal Server Error",
             message: err.message
-         })
+        })
     }
 }
 
@@ -44,23 +54,34 @@ export const getTaskDetail = async (req, res) => {
             message: errors.join(", ")
         })
     }
-    
+
     try {
         const { taskId } = parseResult.data
-        const bootcamps = await BootcampModel.find({ students: req.user.id }).select("_id")
-        if(bootcamps.length === 0) return res.json({ message: "Not registered to any bootcamp" })
-        const bootcampIds = bootcamps.map(bootcamp => bootcamp._id)
+        const enrollments = await EnrollmentModel.find({
+            student: req.user.id,
+            status: 'active'
+        }).select("bootcamp")
 
-        const task = await TaskModel.find({ bootcamp: { $in: bootcampIds }, _id: taskId })
-                                    .populate("bootcamp", "name")
-                                    .populate("instructor", "firstName lastName email")
+        if(enrollments.length === 0) return res.json({
+            message: "Not registered to any bootcamp",
+            task: null
+        })
+
+        const bootcampIds = enrollments.map(enrollment => enrollment.bootcamp)
+
+        const task = await TaskModel.findOne({
+            bootcamp: { $in: bootcampIds },
+            _id: taskId
+        })
+        .populate("bootcamp", "name")
+        .populate("instructor", "firstName lastName email")
 
         if(!task) return res.status(404).json({
             error: "Not Found",
             message: "Task not found or not assigned to you"
         })
 
-        res.status(200).json({ 
+        res.status(200).json({
             message: "Task retrieved successfully",
             task
          })
@@ -102,8 +123,12 @@ export const submitTask = async (req, res) => {
         const task = await TaskModel.findById(taskId).populate("bootcamp");
         if (!task) return res.status(404).json({ error: "Not Found", message: "Task not found" });
 
-        const bootcamp = await BootcampModel.findOne({ _id: task.bootcamp._id, students: studentId });
-        if (!bootcamp) return res.status(403).json({ error: "Forbidden", message: "You are not registered in this bootcamp" });
+        const enrollment = await EnrollmentModel.findOne({
+            bootcamp: task.bootcamp._id,
+            student: studentId,
+            status: 'active'
+        });
+        if (!enrollment) return res.status(403).json({ error: "Forbidden", message: "You are not registered in this bootcamp" });
 
         const { submissionType } = task;
         const fileUrl = req.file ? (req.file.path || req.file.url) : undefined;
@@ -111,18 +136,19 @@ export const submitTask = async (req, res) => {
         if (submissionType === "File" && !fileUrl) {
             return res.status(400).json({ error: "Validation Error", message: "File is required for this task" });
         }
-        if (submissionType === "GitHub" && !githubLink) {
-            return res.status(400).json({ error: "Validation Error", message: "GitHub link is required for this task" });
+        if (submissionType === "Link" && !githubLink) {
+            return res.status(400).json({ error: "Validation Error", message: "Link is required for this task" });
         }
         if (submissionType === "Both" && !fileUrl && !githubLink) {
-            return res.status(400).json({ error: "Validation Error", message: "Either file or GitHub link is required for this task" });
+            return res.status(400).json({ error: "Validation Error", message: "Either file or link is required for this task" });
         }
 
-        
+
 
         const submission = await SubmissionModel.create({
             task: taskId,
             student: studentId,
+            bootcamp: task.bootcamp._id,
             fileUrl,
             githubLink,
             version: 1,

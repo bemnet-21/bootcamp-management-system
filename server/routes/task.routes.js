@@ -1,8 +1,7 @@
 import express from 'express'
 import { createTask, deleteTask, getAllSubmissionForTask, getAllTasks, getSubmissionStats, getTaskById, updateTask } from '../controllers/task.controller.js'
 import protect from '../middlewares/auth.js'
-import {checkInstructor} from '../middlewares/checkInstructor.js'
-import { restrictTo } from '../middlewares/checkRole.js'
+import { requirePermission } from '../middlewares/requirePermission.js'
 
 const router = express.Router({ mergeParams: true })
 
@@ -35,7 +34,7 @@ const router = express.Router({ mergeParams: true })
  *                 format: date-time
  *               submissionType:
  *                 type: string
- *                 enum: [File, GitHub, Other]
+ *                 enum: [File, Link, Both]
  *               maxScore:
  *                 type: number
  *     responses:
@@ -46,7 +45,7 @@ const router = express.Router({ mergeParams: true })
  *       500:
  *         description: Server error
  */
-router.post('/', protect, checkInstructor, createTask)
+router.post('/', protect, requirePermission("tasks"), createTask)
 /**
  * @swagger
  * /tasks:
@@ -63,7 +62,7 @@ router.post('/', protect, checkInstructor, createTask)
  *       404:
  *         description: Bootcamp not found
  */
-router.get('/', protect, restrictTo("Student"), getAllTasks)
+router.get('/', protect, requirePermission({ permission: "tasks", student: true }), getAllTasks)
 /**
  * @swagger
  * /tasks/{taskId}:
@@ -87,7 +86,7 @@ router.get('/', protect, restrictTo("Student"), getAllTasks)
  *       404:
  *         description: Task or bootcamp not found
  */
-router.get('/:taskId', protect, restrictTo("Student"), getTaskById)
+router.get('/:taskId', protect, requirePermission({ permission: "tasks", student: true }), getTaskById)
 /**
  * @swagger
  * /tasks/{taskId}:
@@ -130,7 +129,7 @@ router.get('/:taskId', protect, restrictTo("Student"), getTaskById)
  *       404:
  *         description: Task or bootcamp not found
  */
-router.put('/:taskId', protect, checkInstructor, updateTask)
+router.put('/:taskId', protect, requirePermission("tasks"), updateTask)
 /**
  * @swagger
  * /tasks/{taskId}:
@@ -154,7 +153,7 @@ router.put('/:taskId', protect, checkInstructor, updateTask)
  *       404:
  *         description: Task or bootcamp not found
  */
-router.delete('/:taskId', protect, checkInstructor, deleteTask)
+router.delete('/:taskId', protect, requirePermission("tasks"), deleteTask)
 /**
  * @swagger
  * /tasks/{taskId}/submissions:
@@ -178,7 +177,7 @@ router.delete('/:taskId', protect, checkInstructor, deleteTask)
  *       404:
  *         description: Task or bootcamp not found
  */
-router.get('/:taskId/submissions', protect, checkInstructor, getAllSubmissionForTask)
+router.get('/:taskId/submissions', protect, requirePermission("tasks"), getAllSubmissionForTask)
 /**
  * @swagger
  * /tasks/{taskId}/stats:
@@ -202,5 +201,5 @@ router.get('/:taskId/submissions', protect, checkInstructor, getAllSubmissionFor
  *       404:
  *         description: Task or bootcamp not found
  */
-router.get('/:taskId/stats', protect, checkInstructor, getSubmissionStats)
+router.get('/:taskId/stats', protect, requirePermission("tasks"), getSubmissionStats)
 export default router

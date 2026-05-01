@@ -13,7 +13,8 @@ import {
   listDivisionsWithStats,
   updateDivision,
   deleteDivision,
-  getDivisionWithStats,
+  reactivateDivision,
+  getDivisionById,
 } from "../services/division.service.js";
 
 // create a new division
@@ -170,7 +171,7 @@ export async function getDivisionDetail(req, res, next) {
       });
     }
 
-    const division = await getDivisionWithStats(id);
+    const division = await getDivisionById(id);
 
     //   if division not found
     if (!division) {
@@ -220,6 +221,40 @@ export async function deleteDivisionHandler(req, res, next) {
       success: true,
       data: deleted,
       message: "Division deleted successfully.",
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+//reactivate division
+export async function reactivateDivisionHandler(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return sendError(res, {
+        status: 400,
+        error: "Validation Error",
+        message: "Invalid division id.",
+      });
+    }
+
+    const reactivated = await reactivateDivision(id);
+
+    if (!reactivated) {
+      return sendError(res, {
+        status: 404,
+        error: "Not Found",
+        message: "Division not found or already active.",
+      });
+    }
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      data: reactivated,
+      message: "Division reactivated successfully.",
     });
   } catch (err) {
     return next(err);

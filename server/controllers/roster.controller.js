@@ -1,5 +1,9 @@
+
 import EnrollmentModel from "../models/Enrollment.model.js";
 import z from "zod";
+import { sendNotification } from "../utils/sendNotification.js";
+import UserModel from "../models/User.model.js";
+import BootcampModel from "../models/Bootcamp.model.js";
 
 const addStudentSchema = z.object({
   student: z.string().min(1, "Student ID is required"),
@@ -23,8 +27,25 @@ export const addSingleStudent = async (req, res) => {
       bootcamp: bootcampId,
       student,
     });
-    console.log("enrollment not found", enrollment);
-    console.log(bootcampId, "bootcamp id ");
+    // Fetch bootcamp and student details for notification
+    const bootcamp = await BootcampModel.findById(bootcampId).lean();
+    const studentUser = await UserModel.findById(student).lean();
+
+    if (!bootcamp || !studentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Bootcamp or student not found",
+      });
+    }
+
+
+    // Notification payload
+    const notificationPayload = {
+      userId: studentUser._id,
+      title: `Bootcamp Invitation`,
+      message: `You have been invited to join the bootcamp: ${bootcamp.name}`,
+      type: "BOOTCAMP_INVITE",
+    };
 
     if (enrollment) {
       if (enrollment.status === "active") {
@@ -39,6 +60,9 @@ export const addSingleStudent = async (req, res) => {
       enrollment.leftAt = null;
       await enrollment.save();
 
+      // Send notification for re-enrollment
+      await sendNotification(notificationPayload);
+
       return res.json({
         success: true,
         message: "Student re-enrolled",
@@ -50,6 +74,9 @@ export const addSingleStudent = async (req, res) => {
       bootcamp: bootcampId,
       student,
     });
+
+    // Send notification for new enrollment
+    await sendNotification(notificationPayload);
 
     return res.status(201).json({
       success: true,
@@ -107,6 +134,22 @@ export const addStudentsInBulk = async (req, res) => {
     const result = await EnrollmentModel.bulkWrite(ops, {
       ordered: false,
     });
+
+    // Fetch bootcamp details once
+    const bootcamp = await BootcampModel.findById(bootcampId).lean();
+    if (bootcamp) {
+      // Fetch all student users in bulk
+      const users = await UserModel.find({ _id: { $in: students } }).lean();
+      // Send notification to each student
+      await Promise.all(users.map(user =>
+        sendNotification({
+          userId: user._id,
+          title: 'Bootcamp Invitation',
+          message: `You have been invited to join the bootcamp: ${bootcamp.name}`,
+          type: 'BOOTCAMP_INVITE',
+        })
+      ));
+    }
 
     return res.status(200).json({
       success: true,
@@ -200,6 +243,19 @@ export const permanentlyRemoveStudent = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Enrollment not found",
+      });
+    }
+
+    // Fetch bootcamp and student details for notification
+    const bootcamp = await BootcampModel.findById(bootcampId).lean();
+    const studentUser = await UserModel.findById(studentId).lean();
+
+    if (bootcamp && studentUser) {
+      await sendNotification({
+        userId: studentUser._id,
+        title: `Removed from Bootcamp`,
+        message: `You have been removed from the bootcamp: ${bootcamp.name}`,
+        type: "BOOTCAMP_EXPELLED",
       });
     }
 

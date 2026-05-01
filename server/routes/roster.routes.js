@@ -9,7 +9,9 @@ import {
   getStudentAttendance,
   getStudetSubmission,
 } from "../controllers/roster.controller.js";
-
+import { requirePermission } from "../middlewares/requirePermission.js";
+import protect from "../middlewares/auth.js";
+import { checkLead } from "../middlewares/checkLead.js";
 const router = express.Router({ mergeParams: true });
 
 /**
@@ -373,15 +375,28 @@ const router = express.Router({ mergeParams: true });
  *       500:
  *         description: Server error
  */
-
-router.post("/", addSingleStudent);
-router.post("/bulk", addStudentsInBulk);
-router.get("/", listAllStudents);
-router.get("/:studentId", getSingleStudent);
-router.delete("/:studentId", permanentlyRemoveStudent);
-router.patch("/:studentId", updateStudentStatus);
+router.use(protect);
+router.post("/", requirePermission("studentManagement"), addSingleStudent);
+router.post("/bulk", checkLead, addStudentsInBulk);
+router.get("/", requirePermission({ permission: "studentManagement", student: true }), listAllStudents);
+router.get(
+  "/:studentId",
+  requirePermission({ permission: "studentManagement", student: true }),
+  getSingleStudent,
+);
+router.delete(
+  "/:studentId",
+  requirePermission("studentManagement"),
+  permanentlyRemoveStudent,
+);
+router.patch(
+  "/:studentId",
+  requirePermission("studentManagement"),
+  updateStudentStatus,
+);
 
 // NOT IMPLEMENTED
 router.get("/:studentId/attendance", getStudentAttendance);
 router.get("/:studentId/submissions", getStudetSubmission);
+
 export default router;

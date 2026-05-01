@@ -1,6 +1,6 @@
 import express from "express"
 import protect from "../middlewares/auth.js";
-import { checkInstructor } from "../middlewares/checkInstructor.js";
+import { requirePermission } from "../middlewares/requirePermission.js";
 import { getStudentSubmission, gradeSubmission, pendingSubmissions, returnForReSubmission } from "../controllers/grading.controller.js";
 
 
@@ -16,29 +16,42 @@ const router = express.Router({ mergeParams: true });
 
 /**
  * @swagger
- * /instructor/submissions/pending:
+ * /instructor/bootcamps/{bootcampId}/submissions/pending:
  *   get:
- *     summary: Get all pending submissions
+ *     summary: Get all pending submissions for a bootcamp
  *     tags: [Grading]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
  *     responses:
  *       200:
  *         description: List of pending submissions
  *       401:
  *         description: Unauthorized
  */
-router.get('/pending', protect, checkInstructor, pendingSubmissions)
+router.get('/pending', protect, requirePermission("tasks"), pendingSubmissions)
 
 /**
  * @swagger
- * /instructor/submissions/{submissionId}:
+ * /instructor/bootcamps/{bootcampId}/submissions/{submissionId}:
  *   get:
  *     summary: Get a specific student submission
  *     tags: [Grading]
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
  *       - in: path
  *         name: submissionId
  *         schema:
@@ -55,17 +68,23 @@ router.get('/pending', protect, checkInstructor, pendingSubmissions)
  *       404:
  *         description: Submission not found
  */
-router.get('/:submissionId', protect, checkInstructor, getStudentSubmission)
+router.get('/:submissionId', protect, requirePermission("tasks"), getStudentSubmission)
 
 /**
  * @swagger
- * /instructor/submissions/{submissionId}/grade:
+ * /instructor/bootcamps/{bootcampId}/submissions/{submissionId}/grade:
  *   post:
  *     summary: Grade a student submission
  *     tags: [Grading]
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
  *       - in: path
  *         name: submissionId
  *         schema:
@@ -79,9 +98,9 @@ router.get('/:submissionId', protect, checkInstructor, getStudentSubmission)
  *           schema:
  *             type: object
  *             properties:
- *               grade:
+ *               score:
  *                 type: number
- *               feedback:
+ *               instructorFeedback:
  *                 type: string
  *     responses:
  *       200:
@@ -93,11 +112,11 @@ router.get('/:submissionId', protect, checkInstructor, getStudentSubmission)
  *       404:
  *         description: Submission not found
  */
-router.post('/:submissionId/grade', protect, checkInstructor, gradeSubmission)
+router.post('/:submissionId/grade', protect, requirePermission("tasks"), gradeSubmission)
 
 /**
  * @swagger
- * /instructor/submissions/{submissionId}/return:
+ * /instructor/bootcamps/{bootcampId}/submissions/{submissionId}/return:
  *   patch:
  *     summary: Return a submission for resubmission
  *     tags: [Grading]
@@ -105,19 +124,25 @@ router.post('/:submissionId/grade', protect, checkInstructor, gradeSubmission)
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
+ *       - in: path
  *         name: submissionId
  *         schema:
  *           type: string
  *         required: true
  *         description: The ID of the submission
  *     requestBody:
- *       required: false
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               reason:
+ *               instructorFeedback:
  *                 type: string
  *     responses:
  *       200:
@@ -129,7 +154,7 @@ router.post('/:submissionId/grade', protect, checkInstructor, gradeSubmission)
  *       404:
  *         description: Submission not found
  */
-router.patch('/:submissionId/return', protect, checkInstructor, returnForReSubmission)
+router.patch('/:submissionId/return', protect, requirePermission("tasks"), returnForReSubmission)
 
 // TODO: implement a route to accept late submissions
 

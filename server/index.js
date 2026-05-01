@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { swaggerUi, swaggerSpecs } from "./swagger.js";
-
+import { networkInterfaces } from "node:os";
 import authRoutes from './routes/auth.routes.js'
 import connectDB from './db/db.js'
 import userRoutes from './routes/user.routes.js'
@@ -22,40 +22,76 @@ import studentFeedbackRoutes from "./routes/studentFeedback.routes.js";
 import instructorFeedbackRoutes from "./routes/instructorFeedback.routes.js";
 import rosterRoutes from "./routes/roster.routes.js";
 import notificationsRoutes from "./routes/notifications.routes.js";
-
+import reportsRoutes from "./routes/reports.routes.js";
 import protect from "./middlewares/auth.js";
 import BootcampModel from "./models/Bootcamp.model.js";
 import analyticsRoutes from './routes/analytics.routes.js'
+import publicUserRoutes from "./routes/publicUser.routes.js";
+import bootcampRoutes from "./routes/bootcamp.routes.js";
+
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins for development/testing
+  credentials: true
+}));
 app.use(express.json());
-
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
+
 
 app.use('/auth', authRoutes)
 app.use('/admin/users', userRoutes)
-app.use("/bootcamps/sessions", sessionRoutes);
+app.use('/admin/bootcamps', adminBootcampRoutes)
+app.use("/admin/divisions", divisionRoutes);
+app.use("/admin/reports", reportsRoutes);
+app.use("/users", publicUserRoutes);
+
+// Public divisions endpoint for all authenticated users
+app.get('/divisions', protect, async (req, res) => {
+  try {
+    const Division = (await import('./models/Division.model.js')).default;
+    const divisions = await Division.find({ isDeleted: false }).sort({ name: 1 }).lean();
+    res.json({
+      success: true,
+      data: divisions,
+      message: "Divisions fetched successfully."
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch divisions"
+    });
+  }
+});
+
+app.use("/bootcamps/:bootcampId/instructor", instructorRoutes);
+app.use("/bootcamps/:bootcampId/groups", groupsRoute);
+app.use("/bootcamps/:bootcampId/sessions", sessionRoutes);
+app.use("/bootcamps/:bootcampId/students", rosterRoutes);
+app.use("/bootcamps/:bootcampId/progress/", progressRoutes);
+app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
 app.use('/bootcamps/:bootcampId/:sessionId/resources', resourceRoutes)
 app.use('/bootcamps/:bootcampId/resources', resourceRoutes)
-app.use("/admin/divisions", divisionRoutes);
-app.use('/admin/bootcamps', adminBootcampRoutes)
 app.use('/bootcamps/:bootcampId/tasks', taskRoutes)
+app.use("/bootcamps/:bootcampId/students", rosterRoutes);
+app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
+app.use("/bootcamps", bootcampRoutes);
+
+
 app.use('/student/tasks', studentTaskRoutes)
 app.use('/student/submissions', studentSubmissionRoutes)
-app.use("/instructor/bootcamps", instructorRoutes);
 app.use("/instructor/bootcamps/:bootcampId/submissions/", gradingRoutes)
 app.use('/instructor/bootcamps/:bootcampId/', instructorFeedbackRoutes)
-app.use("/bootcamps/groups" , groupsRoute);
-app.use("/groups/progress/", progressRoutes);
 app.use('/student/sessions', studentFeedbackRoutes)
-app.use("/bootcamps/:bootcampId/students", rosterRoutes);
 app.use('/notifications', notificationsRoutes)
-app.use("/bootcamps/:bootcampId/analytics" , analyticsRoutes);
+app.use("/bootcamps", bootcampRoutes);
+
 app.use('/', attendanceRoutes)
 
 app.use('/bootcamps/:bootcampId/permissions', protect,async (req, res, next) => {
@@ -94,8 +130,12 @@ app.use((err, req, res, next) => {
   });
 });
 
+
+
 await connectDB();
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log("Server is running on port: " + port);
+  console.log("Access locally: http://localhost:" + port);
+  console.log("Access on network: http://<YOUR_IP>:" + port);
 });

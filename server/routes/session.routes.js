@@ -2,16 +2,18 @@ import express from "express";
 import {
   createSession,
   getSingleSession,
-  getSeassions,
   updateSession,
   deleteSession,
+  getBootcampSessions,
   cancelSession,
+  startSession,
+  endSession,
 } from "../controllers/session.controller.js";
 import protect from "../middlewares/auth.js";
-import { checkInstructor } from "../middlewares/checkInstructor.js";
+import { checkLead } from "../middlewares/checkLead.js";
 import { requirePermission } from "../middlewares/requirePermission.js";
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 /**
  * @swagger
@@ -22,18 +24,25 @@ const router = express.Router();
 
 /**
  * @swagger
- * /bootcamps/sessions:
+ * /bootcamps/{bootcampId}/sessions:
  *   get:
  *     summary: List all sessions
  *     tags: [Sessions]
+ *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
  *     responses:
  *       200:
  *         description: List of sessions
  */
- 
+
 /**
  * @swagger
- * /bootcamps/sessions/{bootcampId}:
+ * /bootcamps/{bootcampId}/sessions:
  *   post:
  *     summary: Create a new session
  *     tags: [Sessions]
@@ -52,16 +61,23 @@ const router = express.Router();
  */
 /**
  * @swagger
- * /bootcamps/sessions/{id}:
+ * /bootcamps/{bootcampId}/sessions/{id}:
  *   get:
  *     summary: Get session by ID
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
+ *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: Session ID
  *     responses:
  *       200:
  *         description: Session data
@@ -70,10 +86,17 @@ const router = express.Router();
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
+ *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: Session ID
  *     responses:
  *       200:
  *         description: Session updated
@@ -82,19 +105,32 @@ const router = express.Router();
  *     tags: [Sessions]
  *     parameters:
  *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
+ *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: Session ID
  *     responses:
  *       200:
  *         description: Session deleted
  *
- * /bootcamps/sessions/{id}/cancel:
+ * /bootcamps/{bootcampId}/sessions/{id}/cancel:
  *   patch:
  *     summary: Cancel a session by ID
  *     tags: [Sessions]
  *     parameters:
+ *       - in: path
+ *         name: bootcampId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bootcamp ID
  *       - in: path
  *         name: id
  *         required: true
@@ -110,21 +146,33 @@ const router = express.Router();
 
 // authenticated only
 router.use(protect);
-
-router.get("/", getSeassions);
-router.get("/:bootcampId", getSingleSession);
-
-// both instructor and helper(w permission)
-router.patch("/:bootcampId", requirePermission("sessions"), updateSession);
+router.post("/", requirePermission("sessions"), createSession);
+router.get(
+  "/:sessionId",
+  requirePermission({ permission: "sessions", student: true }),
+  getSingleSession,
+);
+router.get("/", requirePermission("sessions", true), getBootcampSessions);
+router.patch("/:sessionId", requirePermission("sessions"), updateSession);
 router.patch(
-  "/:bootcampId/cancel",
+  "/:sessionId/cancel",
   requirePermission("sessions"),
   cancelSession,
 );
-router.post("/:bootcampId", requirePermission("sessions"), createSession);
+router.patch(
+  "/:sessionId/start",
+  requirePermission("sessions"),
+  startSession,
+);
+router.patch(
+  "/:sessionId/end",
+  requirePermission("sessions"),
+  endSession,
+);
+router.delete("/:sessionId", checkLead, deleteSession);
 
-router.delete("/:bootcampId", checkInstructor, deleteSession);
-
-// we need lead and heper so lead can and helper if he have the permission
-
+// we should implement this for admin to see all seassions
+// router.get("/", getSeassions);
+// - send reminder not implementd
+// - venue not implemented
 export default router;
